@@ -1,22 +1,13 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
+
+// Tumhari Resend API Key
+const resend = new Resend('re_EsUZ5T4m_EYqSFSgfjnJ4cTXhLbN76JsB');
 
 const sendWhatsAppMessage = async (targetEmail, message) => {
   try {
-    // Vercel par connection drop na ho, isliye transporter har baar naya banate hain
-    // Fix 2: Port 465 (Secure) use kar rahe hain, jo Vercel par sabse reliable hai
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465, 
-      secure: true, 
-      auth: {
-        user: process.env.EMAIL_USER, 
-        pass: process.env.EMAIL_PASS, 
-      },
-    });
-
-    const mailOptions = {
-      from: `"Smart School" <${process.env.EMAIL_USER}>`,
-      to: targetEmail, 
+    const data = await resend.emails.send({
+      from: 'Smart School <onboarding@resend.dev>', // Resend ka free domain
+      to: targetEmail, // 👈 Yahan student ke father ki email aayegi
       subject: 'Smart School - Attendance Alert',
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 500px; margin: auto;">
@@ -26,24 +17,12 @@ const sendWhatsAppMessage = async (targetEmail, message) => {
           <p style="font-size: 12px; color: #666; text-align: center;">This is an automated message from Smart School Attendance System.</p>
         </div>
       `,
-    };
-
-    // Fix 3: Vercel ko force karo ke wo email bhejne tak wait kare (Promise wrapper)
-    const info = await new Promise((resolve, reject) => {
-      transporter.sendMail(mailOptions, (err, info) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(info);
-        }
-      });
     });
 
-    console.log(`✅ Email sent to ${targetEmail}: ${info.messageId}`);
-    return { success: true, info };
-    
+    console.log(`✅ Email sent to ${targetEmail}:`, data);
+    return { success: true, data };
   } catch (error) {
-    console.error('❌ Email Error:', error.message);
+    console.error('❌ Resend Email Error:', error.message);
     return { success: false, error: error.message };
   }
 };
