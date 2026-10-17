@@ -1,6 +1,7 @@
 const Student = require('../models/Student');
 const Attendance = require('../models/Attendance');
-const { sendWhatsAppMessage } = require('../utils/whatsappSender');
+// 👇 Yahan hum Baileys wali file import kar rahe hain
+const { sendWhatsAppMessage } = require('../utils/whatsappBaileys');
 
 // @desc    Student ka QR scan karke attendance lagao
 // @route   POST /api/attendance/scan
@@ -53,9 +54,11 @@ const markAttendance = async (req, res) => {
       status: 'present',
     });
 
-    // 5. Father ko WhatsApp Template message bhejo
-    // Hum direct message ke bajaye student ki details bhej rahe hain
-    await sendWhatsAppMessage(student.fatherWhatsApp, student.name, student.rollNumber, timeStr);
+    // 5. Father ko WhatsApp message bhejo (Direct text)
+    const message = `Assalam-o-Alaikum. Aapka beta ${student.name} (Roll No: ${student.rollNumber}) aaj Smart School aa gaya hai. Time: ${timeStr} hai.`;
+    
+    // Yahan hum direct message bhej rahe hain
+    await sendWhatsAppMessage(student.fatherWhatsApp, message);
 
     // 6. Frontend ko success response bhejo
     res.status(200).json({
