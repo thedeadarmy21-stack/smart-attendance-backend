@@ -48,9 +48,15 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`\n🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📅 Environment: ${process.env.NODE_ENV || 'development'}\n`);
-});
+// 👇 Ye line sabse important hai Vercel ke liye 👇
+// Agar Vercel par nahi chal rahe, to server start karo
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`\n🚀 Server running on http://localhost:${PORT}`);
+    console.log(`📅 Environment: ${process.env.NODE_ENV || 'development'}\n`);
+  });
+}
+
+// Vercel ke liye app export karo
 module.exports = app;
