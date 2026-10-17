@@ -1,7 +1,7 @@
 const { Resend } = require('resend');
 
 // Tumhari Resend API Key
-const resend = new Resend('re_EsUZ5T4m_EYqSFSgfjnJ4cTXhLbN76JsB');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendWhatsAppMessage = async (targetEmail, message) => {
   try {
