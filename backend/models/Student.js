@@ -27,10 +27,17 @@ const studentSchema = new mongoose.Schema(
       required: [true, 'Father name is required'],
       trim: true,
     },
+    // 👇 WhatsApp Number future ke liye rakha hai (abhi optional hai)
     fatherWhatsApp: {
       type: String,
-      required: [true, 'Father WhatsApp number is required'],
       trim: true,
+    },
+    // 👇 Gmail wala system chalane ke liye Email field add ki hai
+    fatherEmail: {
+      type: String,
+      required: [true, 'Father email is required'],
+      trim: true,
+      lowercase: true,
     },
     qrCode: {
       type: String,
@@ -50,7 +57,6 @@ const studentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Ek school me roll number unique ho (class + section ke saath)
 studentSchema.index(
   { rollNumber: 1, className: 1, section: 1, schoolName: 1 },
   { unique: true }

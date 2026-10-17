@@ -13,19 +13,20 @@ const addStudent = async (req, res) => {
       section,
       fatherName,
       fatherWhatsApp,
+      fatherEmail, // 👈 Email receive kar rahe hain
     } = req.body;
 
-    // 1. Validation
+    // 1. Validation (Email zaroori hai, WhatsApp optional)
     if (
       !name ||
       !rollNumber ||
       !className ||
       !fatherName ||
-      !fatherWhatsApp
+      !fatherEmail
     ) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required fields',
+        message: 'Please provide all required fields including Email',
       });
     }
 
@@ -54,12 +55,13 @@ const addStudent = async (req, res) => {
       className,
       section: section || 'A',
       fatherName,
-      fatherWhatsApp,
+      fatherWhatsApp: fatherWhatsApp || '', // Agar number nahi diya to khali save hoga
+      fatherEmail,
       qrCode: qrId,
       schoolName: req.teacher.schoolName,
     });
 
-    // 5. QR Image (Base64) banao frontend me dikhane ke liye
+    // 5. QR Image (Base64) banao
     const qrImageDataUrl = await generateQRImage(qrId);
 
     res.status(201).json({
@@ -72,8 +74,9 @@ const addStudent = async (req, res) => {
         className: student.className,
         section: student.section,
         fatherName: student.fatherName,
+        fatherEmail: student.fatherEmail,
         qrCode: student.qrCode,
-        qrImage: qrImageDataUrl, // Frontend pe isko <img src="..."> me use karo
+        qrImage: qrImageDataUrl,
       },
     });
   } catch (error) {
@@ -91,7 +94,6 @@ const addStudent = async (req, res) => {
 // @access  Private (Sirf logged-in teacher)
 const getStudents = async (req, res) => {
   try {
-    // Sirf usi school ke students dikhao jiske teacher login hain
     const students = await Student.find({
       schoolName: req.teacher.schoolName,
     }).sort({ className: 1, rollNumber: 1 });
