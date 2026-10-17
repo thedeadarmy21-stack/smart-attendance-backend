@@ -1,7 +1,7 @@
 const Student = require('../models/Student');
 const Attendance = require('../models/Attendance');
-// 👇 Yahan hum Baileys wali file import kar rahe hain
-const { sendWhatsAppMessage } = require('../utils/whatsappBaileys');
+// 👇 Baileys nahi, ab hum email wali file import kar rahe hain
+const { sendWhatsAppMessage } = require('../utils/whatsappSender');
 
 // @desc    Student ka QR scan karke attendance lagao
 // @route   POST /api/attendance/scan
@@ -54,11 +54,13 @@ const markAttendance = async (req, res) => {
       status: 'present',
     });
 
-    // 5. Father ko WhatsApp message bhejo (Direct text)
+    // 5. Father ko Email bhejo
     const message = `Assalam-o-Alaikum. Aapka beta ${student.name} (Roll No: ${student.rollNumber}) aaj Smart School aa gaya hai. Time: ${timeStr} hai.`;
     
-    // Yahan hum direct message bhej rahe hain
-    await sendWhatsAppMessage(student.fatherWhatsApp, message);
+    // 👇 Yahan student ki fatherEmail bhej rahe hain
+    // Agar database me email nahi hai (purane students), to fallback ke liye DEMO_EMAIL use hoga
+    const targetEmail = student.fatherEmail || process.env.DEMO_EMAIL;
+    await sendWhatsAppMessage(targetEmail, message);
 
     // 6. Frontend ko success response bhejo
     res.status(200).json({

@@ -3,6 +3,9 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 
+// 👇 Vercel ko force karo ke Node.js runtime use kare (Nodemailer ke liye zaroori)
+process.env.VERCEL = '1';
+
 dotenv.config();
 connectDB();
 
@@ -48,8 +51,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 👇 Ye line sabse important hai Vercel ke liye 👇
-// Agar Vercel par nahi chal rahe, to server start karo
+// Vercel par ye block skip ho jayega, local par chalega
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
