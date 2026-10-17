@@ -20,7 +20,8 @@ const AddStudent = () => {
     setLoading(true);
     setError('');
     try {
-      await axios.post('http://localhost:5000/api/students/add', formData, {
+      // 👇 Vercel Live URL
+      await axios.post('https://smart-attendance-backend-one.vercel.app/api/students/add', formData, {
         headers: { Authorization: `Bearer ${token}` },
       });
       navigate('/students');
@@ -32,40 +33,50 @@ const AddStudent = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-      <h3 className="text-xl font-bold text-gray-800 mb-6">Add New Student</h3>
-      {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm font-semibold">{error}</div>}
+    <div className="max-w-3xl mx-auto bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+      <div className="mb-8">
+        <h3 className="text-2xl font-extrabold text-slate-800">Add New Student</h3>
+        <p className="text-slate-500 text-sm mt-1">Enter details to generate their secure QR ID card.</p>
+      </div>
+
+      {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-sm font-bold border border-red-100 flex items-center gap-2"><span>⚠️</span>{error}</div>}
       
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Full Name</label>
-            <input type="text" name="name" required onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
+            <label className="block text-sm font-bold text-slate-700 mb-2">Full Name</label>
+            <input type="text" name="name" required onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-slate-800" placeholder="e.g. Ali Khan" />
           </div>
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Roll Number</label>
-            <input type="text" name="rollNumber" required onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
+            <label className="block text-sm font-bold text-slate-700 mb-2">Roll Number</label>
+            <input type="text" name="rollNumber" required onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-slate-800" placeholder="e.g. 10-A-15" />
           </div>
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Class</label>
-            <input type="text" name="className" required placeholder="e.g. 10" onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
+            <label className="block text-sm font-bold text-slate-700 mb-2">Class</label>
+            <input type="text" name="className" required placeholder="e.g. 10" onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-slate-800" />
           </div>
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Section</label>
-            <input type="text" name="section" value={formData.section} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
+            <label className="block text-sm font-bold text-slate-700 mb-2">Section</label>
+            <input type="text" name="section" value={formData.section} onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-slate-800" />
           </div>
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Father Name</label>
-            <input type="text" name="fatherName" required onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
+            <label className="block text-sm font-bold text-slate-700 mb-2">Father Name</label>
+            <input type="text" name="fatherName" required onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-slate-800" placeholder="e.g. Ahmed Khan" />
           </div>
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">WhatsApp No.</label>
-            <input type="text" name="fatherWhatsApp" required placeholder="+92300..." onChange={handleChange} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
+            <label className="block text-sm font-bold text-slate-700 mb-2">WhatsApp No.</label>
+            <input type="text" name="fatherWhatsApp" required placeholder="+92300..." onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-slate-800" />
           </div>
         </div>
-        <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition mt-6">
-          {loading ? 'Saving...' : 'Add Student & Generate QR'}
-        </button>
+        <div className="pt-4 border-t border-slate-100">
+          <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/30 flex justify-center items-center gap-2">
+            {loading ? (
+              <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Saving...</>
+            ) : (
+              <>➕ Add Student & Generate QR</>
+            )}
+          </button>
+        </div>
       </form>
     </div>
   );

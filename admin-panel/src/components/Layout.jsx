@@ -24,7 +24,7 @@ const Layout = ({ children }) => {
       <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-20">
         <div className="h-20 flex items-center px-6 border-b border-slate-800 bg-slate-950">
           <h1 className="text-xl font-extrabold tracking-wide flex items-center gap-2">
-            <span className="text-2xl">🎓</span> Smart Admin
+            <span className="text-2xl">🎓</span> Smart School
           </h1>
         </div>
         
@@ -52,7 +52,7 @@ const Layout = ({ children }) => {
             </div>
             <div>
               <p className="text-sm font-bold text-white">{adminData.name || 'Admin'}</p>
-              <p className="text-xs text-slate-400">{adminData.schoolName || 'School'}</p>
+              <p className="text-xs text-slate-400">Smart School</p>
             </div>
           </div>
           <button

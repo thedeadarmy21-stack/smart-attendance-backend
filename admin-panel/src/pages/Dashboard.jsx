@@ -8,7 +8,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchStudents = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/students', {
+        const response = await axios.get('https://smart-attendance-backend-one.vercel.app/api/students', {
           headers: { Authorization: `Bearer ${token}` },
         });
         setStudents(response.data.students);
@@ -34,26 +34,26 @@ const Dashboard = () => {
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-5 hover:shadow-md transition-shadow">
           <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl text-3xl">✅</div>
           <div>
-            <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">Today's Attendance</p>
-            <p className="text-xl font-extrabold text-slate-800 mt-1">Live Tracking</p>
+            <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">System Status</p>
+            <p className="text-xl font-extrabold text-emerald-500 mt-1">Active</p>
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-5 hover:shadow-md transition-shadow">
-          <div className="p-4 bg-purple-50 text-purple-600 rounded-2xl text-3xl">🏫</div>
+          <div className="p-4 bg-purple-50 text-purple-600 rounded-2xl text-3xl">📱</div>
           <div>
-            <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">System Status</p>
-            <p className="text-xl font-extrabold text-emerald-500 mt-1">Active</p>
+            <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">App Status</p>
+            <p className="text-xl font-extrabold text-blue-600 mt-1">Connected</p>
           </div>
         </div>
       </div>
       
       {/* WELCOME BANNER */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-10 rounded-3xl shadow-xl text-white relative overflow-hidden">
+      <div className="bg-gradient-to-r from-blue-700 to-indigo-800 p-10 rounded-3xl shadow-xl text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 opacity-10 text-9xl transform translate-x-4 -translate-y-4">🎓</div>
-        <h3 className="text-2xl font-bold mb-2 relative z-10">Welcome back, Admin!</h3>
+        <h3 className="text-2xl font-bold mb-2 relative z-10">Welcome back, Principal!</h3>
         <p className="text-blue-100 relative z-10 max-w-xl">
-          Your Smart Attendance System is up and running. Use the sidebar to manage student data, generate premium ID cards, and view monthly attendance reports.
+          Smart School's Attendance System is up and running. Use the sidebar to manage student data, generate premium ID cards, and view monthly attendance reports.
         </p>
       </div>
     </div>
