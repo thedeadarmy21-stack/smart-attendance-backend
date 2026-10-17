@@ -1,0 +1,73 @@
+const Student = require('../models/Student');
+const Attendance = require('../models/Attendance');
+const { sendWhatsAppMessage } = require('../utils/whatsappSender');
+
+// @desc    Student ka QR scan karke attendance lagao
+// @route   POST /api/attendance/scan
+// @access  Private (Teacher)
+const markAttendance = async (req, res) => {
+  try {
+    const { qrCode } = req.body;
+    const teacherId = req.teacher._id;
+    const schoolName = req.teacher.schoolName;
+
+    if (!qrCode) {
+      return res.status(400).json({ success: false, message: 'QR Code is required' });
+    }
+
+    // 1. Student dhundo
+    const student = await Student.findOne({ qrCode, schoolName });
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Invalid QR Code. Student not found.' });
+    }
+
+    // 2. Aaj ki date aur time nikalo
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    const timeStr = today.toLocaleTimeString('en-US', { hour12: false }); // HH:MM:SS
+
+    // 3. Check karo ke aaj pehle se attendance laga hai ya nahi
+    const existingAttendance = await Attendance.findOne({
+      studentId: student._id,
+      date: dateStr,
+    });
+
+    if (existingAttendance) {
+      return res.status(400).json({
+        success: false,
+        message: `Attendance already marked for ${student.name} today at ${existingAttendance.timeIn}`,
+      });
+    }
+
+    // 4. Attendance save karo
+    const attendance = await Attendance.create({
+      studentId: student._id,
+      teacherId,
+      date: dateStr,
+      timeIn: timeStr,
+      status: 'present',
+    });
+
+    // 5. Father ko WhatsApp message bhejo (Abhi ke liye console me print hoga)
+    const message = `Assalam-o-Alaikum. Aapka beta ${student.name} (Roll No: ${student.rollNumber}) aaj school aa gaya hai. Time: ${timeStr}`;
+    
+    // Ye function backend console me message print karega
+    await sendWhatsAppMessage(student.fatherWhatsApp, message);
+
+    // 6. Frontend ko success response bhejo
+    res.status(200).json({
+      success: true,
+      message: 'Attendance marked successfully',
+      studentName: student.name,
+      rollNumber: student.rollNumber,
+      date: dateStr,
+      timeIn: timeStr,
+    });
+
+  } catch (error) {
+    console.error('Scan Error:', error);
+    res.status(500).json({ success: false, message: 'Server error during scanning' });
+  }
+};
+
+module.exports = { markAttendance };
