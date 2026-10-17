@@ -21,10 +21,15 @@ const markAttendance = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Invalid QR Code. Student not found.' });
     }
 
-    // 2. Aaj ki date aur time nikalo
+    // 2. Aaj ki date aur time nikalo (24-Hour Format)
     const today = new Date();
     const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
-    const timeStr = today.toLocaleTimeString('en-US', { hour12: false }); // HH:MM:SS
+    const timeStr = today.toLocaleTimeString('en-GB', { 
+      hour12: false, 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit' 
+    }); // HH:MM:SS (e.g., 14:35:22)
 
     // 3. Check karo ke aaj pehle se attendance laga hai ya nahi
     const existingAttendance = await Attendance.findOne({
@@ -40,7 +45,7 @@ const markAttendance = async (req, res) => {
     }
 
     // 4. Attendance save karo
-    const attendance = await Attendance.create({
+    await Attendance.create({
       studentId: student._id,
       teacherId,
       date: dateStr,
@@ -49,9 +54,8 @@ const markAttendance = async (req, res) => {
     });
 
     // 5. Father ko WhatsApp message bhejo (Abhi ke liye console me print hoga)
-    const message = `Assalam-o-Alaikum. Aapka beta ${student.name} (Roll No: ${student.rollNumber}) aaj school aa gaya hai. Time: ${timeStr}`;
+    const message = `Assalam-o-Alaikum. Aapka beta ${student.name} (Roll No: ${student.rollNumber}) aaj Smart School aa gaya hai. Time: ${timeStr}`;
     
-    // Ye function backend console me message print karega
     await sendWhatsAppMessage(student.fatherWhatsApp, message);
 
     // 6. Frontend ko success response bhejo
@@ -70,4 +74,26 @@ const markAttendance = async (req, res) => {
   }
 };
 
-module.exports = { markAttendance };
+// @desc    Aaj ki total attendance count laao
+// @route   GET /api/attendance/today
+// @access  Private (Teacher)
+const getTodayAttendanceCount = async (req, res) => {
+  try {
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0]; 
+    
+    // Aaj ki kitni attendance lagi hai, wo count karo
+    const count = await Attendance.countDocuments({
+      teacherId: req.teacher._id, 
+      date: dateStr
+    });
+
+    res.status(200).json({ success: true, count });
+  } catch (error) {
+    console.error('Count Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Dono functions ko export karo
+module.exports = { markAttendance, getTodayAttendanceCount };
