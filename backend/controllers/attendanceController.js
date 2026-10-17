@@ -29,7 +29,7 @@ const markAttendance = async (req, res) => {
       hour: '2-digit', 
       minute: '2-digit', 
       second: '2-digit' 
-    }); // HH:MM:SS (e.g., 14:35:22)
+    }); // HH:MM:SS
 
     // 3. Check karo ke aaj pehle se attendance laga hai ya nahi
     const existingAttendance = await Attendance.findOne({
@@ -53,10 +53,9 @@ const markAttendance = async (req, res) => {
       status: 'present',
     });
 
-    // 5. Father ko WhatsApp message bhejo (Abhi ke liye console me print hoga)
-    const message = `Assalam-o-Alaikum. Aapka beta ${student.name} (Roll No: ${student.rollNumber}) aaj Smart School aa gaya hai. Time: ${timeStr}`;
-    
-    await sendWhatsAppMessage(student.fatherWhatsApp, message);
+    // 5. Father ko WhatsApp Template message bhejo
+    // Hum direct message ke bajaye student ki details bhej rahe hain
+    await sendWhatsAppMessage(student.fatherWhatsApp, student.name, student.rollNumber, timeStr);
 
     // 6. Frontend ko success response bhejo
     res.status(200).json({
@@ -82,7 +81,6 @@ const getTodayAttendanceCount = async (req, res) => {
     const today = new Date();
     const dateStr = today.toISOString().split('T')[0]; 
     
-    // Aaj ki kitni attendance lagi hai, wo count karo
     const count = await Attendance.countDocuments({
       teacherId: req.teacher._id, 
       date: dateStr
@@ -95,5 +93,4 @@ const getTodayAttendanceCount = async (req, res) => {
   }
 };
 
-// Dono functions ko export karo
 module.exports = { markAttendance, getTodayAttendanceCount };
