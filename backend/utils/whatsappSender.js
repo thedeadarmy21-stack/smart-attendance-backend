@@ -3,10 +3,11 @@ const nodemailer = require('nodemailer');
 const sendWhatsAppMessage = async (targetEmail, message) => {
   try {
     // Vercel par connection drop na ho, isliye transporter har baar naya banate hain
+    // Fix 2: Port 465 (Secure) use kar rahe hain, jo Vercel par sabse reliable hai
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
-      port: 587,
-      secure: false, 
+      port: 465, 
+      secure: true, 
       auth: {
         user: process.env.EMAIL_USER, 
         pass: process.env.EMAIL_PASS, 
@@ -15,7 +16,7 @@ const sendWhatsAppMessage = async (targetEmail, message) => {
 
     const mailOptions = {
       from: `"Smart School" <${process.env.EMAIL_USER}>`,
-      to: targetEmail, // 👈 Ab yahan student ke father ki email aayegi
+      to: targetEmail, 
       subject: 'Smart School - Attendance Alert',
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 500px; margin: auto;">
@@ -27,7 +28,17 @@ const sendWhatsAppMessage = async (targetEmail, message) => {
       `,
     };
 
-    const info = await transporter.sendMail(mailOptions);
+    // Fix 3: Vercel ko force karo ke wo email bhejne tak wait kare (Promise wrapper)
+    const info = await new Promise((resolve, reject) => {
+      transporter.sendMail(mailOptions, (err, info) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(info);
+        }
+      });
+    });
+
     console.log(`✅ Email sent to ${targetEmail}: ${info.messageId}`);
     return { success: true, info };
     
