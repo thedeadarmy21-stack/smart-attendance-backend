@@ -3,163 +3,118 @@ const Attendance = require('../models/Attendance');
 const { sendWhatsAppMessage } = require('../utils/whatsappSender');
 
 // @desc    Student ka QR scan karke attendance lagao
-// @route   POST /api/attendance/scan
-// @access  Private (Teacher)
 const markAttendance = async (req, res) => {
   try {
     const { qrCode } = req.body;
     const teacherId = req.teacher._id;
     const schoolName = req.teacher.schoolName;
 
-    if (!qrCode) {
-      return res.status(400).json({ success: false, message: 'QR Code is required' });
-    }
+    if (!qrCode) return res.status(400).json({ success: false, message: 'QR Code is required' });
 
     const student = await Student.findOne({ qrCode, schoolName });
-    if (!student) {
-      return res.status(404).json({ success: false, message: 'Invalid QR Code. Student not found.' });
-    }
+    if (!student) return res.status(404).json({ success: false, message: 'Invalid QR Code' });
 
     const today = new Date();
     const dateStr = today.toISOString().split('T')[0]; 
     const timeStr = today.toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }); 
 
-    const existingAttendance = await Attendance.findOne({
-      studentId: student._id,
-      date: dateStr,
-    });
-
+    const existingAttendance = await Attendance.findOne({ studentId: student._id, date: dateStr });
     if (existingAttendance) {
-      return res.status(400).json({
-        success: false,
-        message: `Attendance already marked for ${student.name} today at ${existingAttendance.timeIn}`,
-      });
+      return res.status(400).json({ success: false, message: `Already marked for ${student.name} at ${existingAttendance.timeIn}` });
     }
 
-    await Attendance.create({
-      studentId: student._id,
-      teacherId,
-      date: dateStr,
-      timeIn: timeStr,
-      status: 'present',
-    });
+    await Attendance.create({ studentId: student._id, teacherId, date: dateStr, timeIn: timeStr, status: 'present' });
 
     const message = `Assalam-o-Alaikum. Aapka beta ${student.name} (Roll No: ${student.rollNumber}) aaj Smart School aa gaya hai. Time: ${timeStr} hai.`;
-    const targetEmail = student.fatherEmail || process.env.DEMO_EMAIL;
-    await sendWhatsAppMessage(targetEmail, message);
+    await sendWhatsAppMessage(student.fatherEmail || process.env.DEMO_EMAIL, message);
 
-    res.status(200).json({
-      success: true,
-      message: 'Attendance marked successfully',
-      studentName: student.name,
-      rollNumber: student.rollNumber,
-      date: dateStr,
-      timeIn: timeStr,
-    });
-
+    res.status(200).json({ success: true, studentName: student.name, rollNumber: student.rollNumber, timeIn: timeStr });
   } catch (error) {
-    console.error('Scan Error:', error);
-    res.status(500).json({ success: false, message: 'Server error during scanning' });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// @desc    Aaj ki total attendance count laao
-// @route   GET /api/attendance/today
-// @access  Private (Teacher)
+// @desc    Aaj ki total attendance count
 const getTodayAttendanceCount = async (req, res) => {
   try {
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0]; 
-    
-    const count = await Attendance.countDocuments({
-      teacherId: req.teacher._id, 
-      date: dateStr
-    });
-
+    const dateStr = new Date().toISOString().split('T')[0]; 
+    const count = await Attendance.countDocuments({ teacherId: req.teacher._id, date: dateStr });
     res.status(200).json({ success: true, count });
   } catch (error) {
-    console.error('Count Error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
 // @desc    Dashboard ke liye aaj ka data
-// @route   GET /api/attendance/dashboard-stats
-// @access  Private (Teacher)
 const getDashboardStats = async (req, res) => {
   try {
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0]; 
-
-    const totalStudents = await Student.countDocuments({
-      schoolName: req.teacher.schoolName,
-      isActive: true
-    });
-
-    const presentToday = await Attendance.countDocuments({
-      teacherId: req.teacher._id, 
-      date: dateStr
-    });
-
+    const dateStr = new Date().toISOString().split('T')[0]; 
+    const totalStudents = await Student.countDocuments({ schoolName: req.teacher.schoolName, isActive: true });
+    const presentToday = await Attendance.countDocuments({ teacherId: req.teacher._id, date: dateStr });
     const absentToday = totalStudents - presentToday;
 
-    res.status(200).json({ 
-      success: true, 
-      totalStudents, 
-      presentToday, 
-      absentToday: absentToday < 0 ? 0 : absentToday 
-    });
+    res.status(200).json({ success: true, totalStudents, presentToday, absentToday: absentToday < 0 ? 0 : absentToday });
   } catch (error) {
-    console.error('Stats Error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// 🚀 NAYA FEATURE: Jin bacho ne scan nahi karwaya unhe absent mark karo
+// 🚀 NAYA FEATURE: Class-wise Stats (Kis class me kitne present/absent hain)
+// @route   GET /api/attendance/class-stats
+const getClassWiseStats = async (req, res) => {
+  try {
+    const dateStr = new Date().toISOString().split('T')[0];
+    const schoolName = req.teacher.schoolName;
+
+    // Saare students nikaalo
+    const students = await Student.find({ schoolName, isActive: true });
+    
+    // Aaj ki attendance nikaalo
+    const todayAttendance = await Attendance.find({ date: dateStr, teacherId: req.teacher._id });
+
+    // Class ke hisaab se data group karo
+    const classData = {};
+
+    students.forEach(student => {
+      const className = student.className;
+      if (!classData[className]) {
+        classData[className] = { className, total: 0, present: 0, absent: 0 };
+      }
+      classData[className].total += 1;
+      
+      const isPresent = todayAttendance.find(a => a.studentId.toString() === student._id.toString());
+      if (isPresent) classData[className].present += 1;
+      else classData[className].absent += 1;
+    });
+
+    // Object ko Array me badlo aur sort karo
+    const result = Object.values(classData).sort((a, b) => a.className.localeCompare(b.className));
+
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // @desc    Mark all unscanned students as absent
-// @route   POST /api/attendance/mark-absent
-// @access  Private (Teacher)
 const markAbsentees = async (req, res) => {
   try {
-    const teacherId = req.teacher._id;
-    const schoolName = req.teacher.schoolName;
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0];
-    const timeStr = '00:00:00';
-
-    // 1. Aaj jinke present hain unki IDs nikaalo
-    const presentRecords = await Attendance.find({ date: dateStr, teacherId }).select('studentId');
+    const dateStr = new Date().toISOString().split('T')[0];
+    const presentRecords = await Attendance.find({ date: dateStr, teacherId: req.teacher._id }).select('studentId');
     const presentStudentIds = presentRecords.map(r => r.studentId.toString());
 
-    // 2. Un sab bacho ko dhundo jo aaj present nahi hain
-    const absentStudents = await Student.find({
-      schoolName,
-      isActive: true,
-      _id: { $nin: presentStudentIds }
-    });
+    const absentStudents = await Student.find({ schoolName: req.teacher.schoolName, isActive: true, _id: { $nin: presentStudentIds } });
 
-    // 3. Unko absent mark karo
     const absentRecords = absentStudents.map(student => ({
-      studentId: student._id,
-      teacherId,
-      date: dateStr,
-      timeIn: timeStr,
-      status: 'absent'
+      studentId: student._id, teacherId: req.teacher._id, date: dateStr, timeIn: '00:00:00', status: 'absent'
     }));
 
-    if (absentRecords.length > 0) {
-      await Attendance.insertMany(absentRecords);
-    }
-
-    res.status(200).json({ 
-      success: true, 
-      message: `${absentStudents.length} students marked as absent successfully.` 
-    });
-
+    if (absentRecords.length > 0) await Attendance.insertMany(absentRecords);
+    res.status(200).json({ success: true, message: `${absentStudents.length} students marked as absent.` });
   } catch (error) {
-    console.error('Mark Absent Error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-module.exports = { markAttendance, getTodayAttendanceCount, getDashboardStats, markAbsentees };
+module.exports = { markAttendance, getTodayAttendanceCount, getDashboardStats, getClassWiseStats, markAbsentees };
