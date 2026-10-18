@@ -2,7 +2,7 @@ const Student = require('../models/Student');
 const Attendance = require('../models/Attendance');
 const { sendWhatsAppMessage } = require('../utils/whatsappSender');
 
-// @desc    Student ka QR scan karke attendance lagao
+// @desc    Student ka QR scan karke attendance lagao (Late logic ke saath)
 const markAttendance = async (req, res) => {
   try {
     const { qrCode } = req.body;
@@ -16,19 +16,30 @@ const markAttendance = async (req, res) => {
 
     const today = new Date();
     const dateStr = today.toISOString().split('T')[0]; 
-    const timeStr = today.toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }); 
+    
+    // 🚀 NAYA: Time nikaalo
+    const hours = today.getHours();
+    const minutes = today.getMinutes();
+    const seconds = today.getSeconds();
+    const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    // 🚀 NAYA: Late Logic (Agar 8:15 AM ke baad aaya to Late)
+    let status = 'present';
+    if (hours > 8 || (hours === 8 && minutes > 15)) {
+      status = 'late';
+    }
 
     const existingAttendance = await Attendance.findOne({ studentId: student._id, date: dateStr });
     if (existingAttendance) {
       return res.status(400).json({ success: false, message: `Already marked for ${student.name} at ${existingAttendance.timeIn}` });
     }
 
-    await Attendance.create({ studentId: student._id, teacherId, date: dateStr, timeIn: timeStr, status: 'present' });
+    await Attendance.create({ studentId: student._id, teacherId, date: dateStr, timeIn: timeStr, status: status });
 
-    const message = `Assalam-o-Alaikum. Aapka beta ${student.name} (Roll No: ${student.rollNumber}) aaj Smart School aa gaya hai. Time: ${timeStr} hai.`;
+    const message = `Assalam-o-Alaikum. Aapka beta ${student.name} (Roll No: ${student.rollNumber}) aaj Smart School ${status === 'late' ? 'der se ' : ''}aa gaya hai. Time: ${timeStr} hai.`;
     await sendWhatsAppMessage(student.fatherEmail || process.env.DEMO_EMAIL, message);
 
-    res.status(200).json({ success: true, studentName: student.name, rollNumber: student.rollNumber, timeIn: timeStr });
+    res.status(200).json({ success: true, studentName: student.name, rollNumber: student.rollNumber, timeIn: timeStr, status: status });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
   }
@@ -59,20 +70,15 @@ const getDashboardStats = async (req, res) => {
   }
 };
 
-// 🚀 NAYA FEATURE: Class-wise Stats (Kis class me kitne present/absent hain)
-// @route   GET /api/attendance/class-stats
+// @desc    Class-wise Stats (Kis class me kitne present/absent hain)
 const getClassWiseStats = async (req, res) => {
   try {
     const dateStr = new Date().toISOString().split('T')[0];
     const schoolName = req.teacher.schoolName;
 
-    // Saare students nikaalo
     const students = await Student.find({ schoolName, isActive: true });
-    
-    // Aaj ki attendance nikaalo
     const todayAttendance = await Attendance.find({ date: dateStr, teacherId: req.teacher._id });
 
-    // Class ke hisaab se data group karo
     const classData = {};
 
     students.forEach(student => {
@@ -87,12 +93,9 @@ const getClassWiseStats = async (req, res) => {
       else classData[className].absent += 1;
     });
 
-    // Object ko Array me badlo aur sort karo
     const result = Object.values(classData).sort((a, b) => a.className.localeCompare(b.className));
-
     res.status(200).json({ success: true, data: result });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
