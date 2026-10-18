@@ -6,21 +6,22 @@ const Attendance = require('../models/Attendance');
 const getMonthlyReport = async (req, res) => {
   try {
     const { studentId } = req.params;
-    const { month } = req.query; // Format: "YYYY-MM"
+    const { month } = req.query;
 
     if (!month) {
       return res.status(400).json({ success: false, message: 'Month is required (YYYY-MM)' });
     }
 
-    // Month ke hisaab se attendance nikalo
     const attendance = await Attendance.find({
       studentId,
-      date: { $regex: `^${month}` }, // "2026-10" se start hone wali dates
+      date: { $regex: `^${month}` },
     }).sort({ date: 1 });
+
+    const totalDaysPresent = attendance.filter(a => a.status === 'present').length;
 
     res.status(200).json({
       success: true,
-      totalDaysPresent: attendance.length,
+      totalDaysPresent,
       attendance,
     });
   } catch (error) {
