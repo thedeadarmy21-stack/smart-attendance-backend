@@ -1,5 +1,5 @@
 const Student = require('../models/Student');
-const Attendance = require('../models/Attendance'); // 👈 Naya import
+const Attendance = require('../models/Attendance');
 const { generateQRId, generateQRImage } = require('../utils/qrGenerator');
 
 // @desc    Naya student add karo
@@ -11,13 +11,8 @@ const addStudent = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide all required fields' });
     }
 
-    const existingStudent = await Student.findOne({
-      rollNumber, className, section: section || 'A', schoolName: req.teacher.schoolName,
-    });
-
-    if (existingStudent) {
-      return res.status(400).json({ success: false, message: 'This student already exists in this class' });
-    }
+    const existingStudent = await Student.findOne({ rollNumber, className, section: section || 'A', schoolName: req.teacher.schoolName });
+    if (existingStudent) return res.status(400).json({ success: false, message: 'This student already exists in this class' });
 
     const qrId = generateQRId(rollNumber, className, section || 'A');
 
@@ -47,33 +42,43 @@ const getStudents = async (req, res) => {
   }
 };
 
-// 🚀 NAYA FEATURE: Ek student ki puri profile aur attendance history
-// @route   GET /api/students/profile/:id
+// @desc    Ek student ki puri profile aur attendance history
 const getStudentProfile = async (req, res) => {
   try {
-    const studentId = req.params.id;
-    const student = await Student.findOne({ _id: studentId, schoolName: req.teacher.schoolName });
-    
+    const student = await Student.findOne({ _id: req.params.id, schoolName: req.teacher.schoolName });
     if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
-    // Us student ki saari attendance nikaalo (latest pehle)
-    const attendance = await Attendance.find({ studentId }).sort({ date: -1 });
-
-    // Total present aur late count karo
+    const attendance = await Attendance.find({ studentId: student._id }).sort({ date: -1 });
     const totalPresent = attendance.filter(a => a.status === 'present').length;
     const totalLate = attendance.filter(a => a.status === 'late').length;
     const totalAbsent = attendance.filter(a => a.status === 'absent').length;
 
-    res.status(200).json({
-      success: true,
-      student,
-      attendance,
-      stats: { totalPresent, totalLate, totalAbsent }
-    });
+    res.status(200).json({ success: true, student, attendance, stats: { totalPresent, totalLate, totalAbsent } });
   } catch (error) {
-    console.error('Profile Error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-module.exports = { addStudent, getStudents, getStudentProfile };
+// 🚀 NAYA FEATURE: Student Delete karo
+const deleteStudent = async (req, res) => {
+  try {
+    const studentId = req.params.id;
+    
+    // Pehle student dhundo
+    const student = await Student.findOne({ _id: studentId, schoolName: req.teacher.schoolName });
+    if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+    // Student ki saari attendance delete karo
+    await Attendance.deleteMany({ studentId: studentId });
+    
+    // Phir student delete karo
+    await Student.findByIdAndDelete(studentId);
+
+    res.status(200).json({ success: true, message: 'Student and their records deleted successfully' });
+  } catch (error) {
+    console.error('Delete Error:', error);
+    res.status(500).json({ success: false, message: 'Server error while deleting student' });
+  }
+};
+
+module.exports = { addStudent, getStudents, getStudentProfile, deleteStudent };

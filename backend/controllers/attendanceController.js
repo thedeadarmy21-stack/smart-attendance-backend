@@ -2,7 +2,7 @@ const Student = require('../models/Student');
 const Attendance = require('../models/Attendance');
 const { sendWhatsAppMessage } = require('../utils/whatsappSender');
 
-// @desc    Student ka QR scan karke attendance lagao (Late logic ke saath)
+// @desc    Student ka QR scan karke attendance lagao (Pakistan Time ke saath)
 const markAttendance = async (req, res) => {
   try {
     const { qrCode } = req.body;
@@ -15,17 +15,22 @@ const markAttendance = async (req, res) => {
     if (!student) return res.status(404).json({ success: false, message: 'Invalid QR Code' });
 
     const today = new Date();
-    const dateStr = today.toISOString().split('T')[0]; 
-    
-    // 🚀 NAYA: Time nikaalo
-    const hours = today.getHours();
-    const minutes = today.getMinutes();
-    const seconds = today.getSeconds();
-    const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    // Date aur Time Pakistan timezone me nikaalo
+    const dateStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' }); // YYYY-MM-DD
+    const timeStr = today.toLocaleTimeString('en-GB', { 
+      timeZone: 'Asia/Karachi', 
+      hour12: false, 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit' 
+    }); // HH:MM:SS
 
-    // 🚀 NAYA: Late Logic (Agar 8:15 AM ke baad aaya to Late)
+    // Late Logic (Pakistan time ke hisaab se)
+    const localTime = today.toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: false });
+    const [localHour, localMinute] = localTime.split(':').map(Number);
+
     let status = 'present';
-    if (hours > 8 || (hours === 8 && minutes > 15)) {
+    if (localHour > 8 || (localHour === 8 && localMinute > 15)) {
       status = 'late';
     }
 
@@ -48,7 +53,7 @@ const markAttendance = async (req, res) => {
 // @desc    Aaj ki total attendance count
 const getTodayAttendanceCount = async (req, res) => {
   try {
-    const dateStr = new Date().toISOString().split('T')[0]; 
+    const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' }); 
     const count = await Attendance.countDocuments({ teacherId: req.teacher._id, date: dateStr });
     res.status(200).json({ success: true, count });
   } catch (error) {
@@ -59,7 +64,7 @@ const getTodayAttendanceCount = async (req, res) => {
 // @desc    Dashboard ke liye aaj ka data
 const getDashboardStats = async (req, res) => {
   try {
-    const dateStr = new Date().toISOString().split('T')[0]; 
+    const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' }); 
     const totalStudents = await Student.countDocuments({ schoolName: req.teacher.schoolName, isActive: true });
     const presentToday = await Attendance.countDocuments({ teacherId: req.teacher._id, date: dateStr });
     const absentToday = totalStudents - presentToday;
@@ -70,10 +75,10 @@ const getDashboardStats = async (req, res) => {
   }
 };
 
-// @desc    Class-wise Stats (Kis class me kitne present/absent hain)
+// @desc    Class-wise Stats
 const getClassWiseStats = async (req, res) => {
   try {
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
     const schoolName = req.teacher.schoolName;
 
     const students = await Student.find({ schoolName, isActive: true });
@@ -103,7 +108,7 @@ const getClassWiseStats = async (req, res) => {
 // @desc    Mark all unscanned students as absent
 const markAbsentees = async (req, res) => {
   try {
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
     const presentRecords = await Attendance.find({ date: dateStr, teacherId: req.teacher._id }).select('studentId');
     const presentStudentIds = presentRecords.map(r => r.studentId.toString());
 
