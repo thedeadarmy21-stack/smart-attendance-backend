@@ -4,14 +4,15 @@ const {
   registerTeacher,
   loginTeacher,
   getMe,
-  resetDeviceLocks // 👈 Ye import karna zaroori tha
+  changePassword,
+  resetDeviceLocks
 } = require('../controllers/authController');
-
 const { protect } = require('../middleware/authMiddleware');
 
 router.post('/register', registerTeacher);
 router.post('/login', loginTeacher);
 router.get('/me', protect, getMe);
-router.get('/reset-locks', resetDeviceLocks); // 👈 Ye route add kiya
+router.put('/change-password', protect, changePassword); // 👈 Naya route
+router.get('/reset-locks', resetDeviceLocks);
 
 module.exports = router;
