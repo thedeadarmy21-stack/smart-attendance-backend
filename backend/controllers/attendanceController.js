@@ -43,7 +43,6 @@ const markAttendance = async (req, res) => {
 
     const message = `Assalam-o-Alaikum. Aapka beta ${student.name} (Roll No: ${student.rollNumber}) aaj Smart School ${status === 'late' ? 'der se ' : ''}aa gaya hai. Time: ${timeStr} hai.`;
     
-    // 👇 Yahan hum Email aur SMS dono bhej rahe hain
     await sendWhatsAppMessage(student.fatherEmail, student.fatherWhatsApp, message);
 
     res.status(200).json({ success: true, studentName: student.name, rollNumber: student.rollNumber, timeIn: timeStr, status: status });
@@ -127,11 +126,19 @@ const markAbsentees = async (req, res) => {
   }
 };
 
-// @desc    Get students with attendance below 75%
+// 🚀 NAYA FEATURE: Low Attendance Alert (Class filter ke saath)
 const getLowAttendanceStudents = async (req, res) => {
   try {
+    const { className } = req.query; // 👈 URL se class receive kar rahe hain
     const schoolName = req.teacher.schoolName;
-    const students = await Student.find({ schoolName, isActive: true });
+    
+    // Agar class select ki hai to sirf usi class ke students lo
+    let query = { schoolName, isActive: true };
+    if (className && className !== 'all') {
+      query.className = className;
+    }
+
+    const students = await Student.find(query);
     
     const lowAttendanceList = [];
     const totalDays = 20; // Demo ke liye 20 din ka standard
