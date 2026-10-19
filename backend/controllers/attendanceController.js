@@ -2,10 +2,10 @@ const Student = require('../models/Student');
 const Attendance = require('../models/Attendance');
 const { sendWhatsAppMessage } = require('../utils/whatsappSender');
 
-// @desc    Student ka QR scan karke attendance lagao (Pakistan Time ke saath)
+// @desc    Student ka QR scan karke attendance lagao (Class-wise logic ke saath)
 const markAttendance = async (req, res) => {
   try {
-    const { qrCode } = req.body;
+    const { qrCode, targetClass } = req.body; // 👈 targetClass receive kar rahe hain
     const teacherId = req.teacher._id;
     const schoolName = req.teacher.schoolName;
 
@@ -14,18 +14,18 @@ const markAttendance = async (req, res) => {
     const student = await Student.findOne({ qrCode, schoolName });
     if (!student) return res.status(404).json({ success: false, message: 'Invalid QR Code' });
 
-    const today = new Date();
-    // Date aur Time Pakistan timezone me nikaalo
-    const dateStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' }); // YYYY-MM-DD
-    const timeStr = today.toLocaleTimeString('en-GB', { 
-      timeZone: 'Asia/Karachi', 
-      hour12: false, 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      second: '2-digit' 
-    }); // HH:MM:SS
+    // 🚀 NAYA FEATURE: Class-wise Check
+    if (targetClass && student.className !== targetClass) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Invalid Student! Ye student Class ${student.className} ka hai, aap Class ${targetClass} scan kar rahe hain.` 
+      });
+    }
 
-    // Late Logic (Pakistan time ke hisaab se)
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+    const timeStr = today.toLocaleTimeString('en-GB', { timeZone: 'Asia/Karachi', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
     const localTime = today.toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: false });
     const [localHour, localMinute] = localTime.split(':').map(Number);
 
@@ -125,4 +125,43 @@ const markAbsentees = async (req, res) => {
   }
 };
 
-module.exports = { markAttendance, getTodayAttendanceCount, getDashboardStats, getClassWiseStats, markAbsentees };
+// 🚀 NAYA FEATURE: Low Attendance Alert (Jo bache 75% se kam aaye hain)
+// @desc    Get students with attendance below 75%
+const getLowAttendanceStudents = async (req, res) => {
+  try {
+    const schoolName = req.teacher.schoolName;
+    const students = await Student.find({ schoolName, isActive: true });
+    
+    const lowAttendanceList = [];
+    const totalDays = 20; // Filhal hum 20 din ka standard maan rahe hain (Demo ke liye)
+
+    for (const student of students) {
+      const totalPresent = await Attendance.countDocuments({ 
+        studentId: student._id, 
+        status: { $in: ['present', 'late'] } 
+      });
+      
+      const percentage = Math.round((totalPresent / totalDays) * 100);
+      
+      if (percentage < 75) {
+        lowAttendanceList.push({
+          _id: student._id,
+          name: student.name,
+          rollNumber: student.rollNumber,
+          className: student.className,
+          percentage: percentage > 100 ? 100 : percentage
+        });
+      }
+    }
+
+    // Sabse kam percentage wale upar aayen
+    lowAttendanceList.sort((a, b) => a.percentage - b.percentage);
+
+    res.status(200).json({ success: true, data: lowAttendanceList });
+  } catch (error) {
+    console.error('Low Attendance Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+module.exports = { markAttendance, getTodayAttendanceCount, getDashboardStats, getClassWiseStats, markAbsentees, getLowAttendanceStudents };
