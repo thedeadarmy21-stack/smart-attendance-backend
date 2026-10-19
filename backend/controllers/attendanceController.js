@@ -5,7 +5,7 @@ const { sendWhatsAppMessage } = require('../utils/whatsappSender');
 // @desc    Student ka QR scan karke attendance lagao (Class-wise logic ke saath)
 const markAttendance = async (req, res) => {
   try {
-    const { qrCode, targetClass } = req.body; // 👈 targetClass receive kar rahe hain
+    const { qrCode, targetClass } = req.body; 
     const teacherId = req.teacher._id;
     const schoolName = req.teacher.schoolName;
 
@@ -14,7 +14,7 @@ const markAttendance = async (req, res) => {
     const student = await Student.findOne({ qrCode, schoolName });
     if (!student) return res.status(404).json({ success: false, message: 'Invalid QR Code' });
 
-    // 🚀 NAYA FEATURE: Class-wise Check
+    // Class-wise Check
     if (targetClass && student.className !== targetClass) {
       return res.status(400).json({ 
         success: false, 
@@ -42,7 +42,9 @@ const markAttendance = async (req, res) => {
     await Attendance.create({ studentId: student._id, teacherId, date: dateStr, timeIn: timeStr, status: status });
 
     const message = `Assalam-o-Alaikum. Aapka beta ${student.name} (Roll No: ${student.rollNumber}) aaj Smart School ${status === 'late' ? 'der se ' : ''}aa gaya hai. Time: ${timeStr} hai.`;
-    await sendWhatsAppMessage(student.fatherEmail || process.env.DEMO_EMAIL, message);
+    
+    // 👇 Yahan hum Email aur SMS dono bhej rahe hain
+    await sendWhatsAppMessage(student.fatherEmail, student.fatherWhatsApp, message);
 
     res.status(200).json({ success: true, studentName: student.name, rollNumber: student.rollNumber, timeIn: timeStr, status: status });
   } catch (error) {
@@ -125,7 +127,6 @@ const markAbsentees = async (req, res) => {
   }
 };
 
-// 🚀 NAYA FEATURE: Low Attendance Alert (Jo bache 75% se kam aaye hain)
 // @desc    Get students with attendance below 75%
 const getLowAttendanceStudents = async (req, res) => {
   try {
@@ -133,7 +134,7 @@ const getLowAttendanceStudents = async (req, res) => {
     const students = await Student.find({ schoolName, isActive: true });
     
     const lowAttendanceList = [];
-    const totalDays = 20; // Filhal hum 20 din ka standard maan rahe hain (Demo ke liye)
+    const totalDays = 20; // Demo ke liye 20 din ka standard
 
     for (const student of students) {
       const totalPresent = await Attendance.countDocuments({ 
@@ -154,9 +155,7 @@ const getLowAttendanceStudents = async (req, res) => {
       }
     }
 
-    // Sabse kam percentage wale upar aayen
     lowAttendanceList.sort((a, b) => a.percentage - b.percentage);
-
     res.status(200).json({ success: true, data: lowAttendanceList });
   } catch (error) {
     console.error('Low Attendance Error:', error);
