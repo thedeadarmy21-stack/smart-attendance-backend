@@ -23,11 +23,19 @@ const markAttendance = async (req, res) => {
     }
 
     const today = new Date();
+    // Date (YYYY-MM-DD)
     const dateStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
-    const timeStr = today.toLocaleTimeString('en-GB', { timeZone: 'Asia/Karachi', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    
+    const timeStr = today.toLocaleTimeString('en-US', { 
+  timeZone: 'Asia/Karachi', 
+  hour12: true, 
+  hour: '2-digit', 
+  minute: '2-digit' 
+});
 
-    const localTime = today.toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: false });
-    const [localHour, localMinute] = localTime.split(':').map(Number);
+    // Late Logic (24-hour format me check karenge taaki AM/PM ka confusion na ho)
+    const localTime24 = today.toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: false });
+    const [localHour, localMinute] = localTime24.split(':').map(Number);
 
     let status = 'present';
     if (localHour > 8 || (localHour === 8 && localMinute > 15)) {
@@ -116,7 +124,7 @@ const markAbsentees = async (req, res) => {
     const absentStudents = await Student.find({ schoolName: req.teacher.schoolName, isActive: true, _id: { $nin: presentStudentIds } });
 
     const absentRecords = absentStudents.map(student => ({
-      studentId: student._id, teacherId: req.teacher._id, date: dateStr, timeIn: '00:00:00', status: 'absent'
+      studentId: student._id, teacherId: req.teacher._id, date: dateStr, timeIn: '--:--', status: 'absent'
     }));
 
     if (absentRecords.length > 0) await Attendance.insertMany(absentRecords);
@@ -126,13 +134,12 @@ const markAbsentees = async (req, res) => {
   }
 };
 
-// 🚀 NAYA FEATURE: Low Attendance Alert (Class filter ke saath)
+// @desc    Low Attendance Alert
 const getLowAttendanceStudents = async (req, res) => {
   try {
-    const { className } = req.query; // 👈 URL se class receive kar rahe hain
+    const { className } = req.query;
     const schoolName = req.teacher.schoolName;
     
-    // Agar class select ki hai to sirf usi class ke students lo
     let query = { schoolName, isActive: true };
     if (className && className !== 'all') {
       query.className = className;
@@ -141,7 +148,7 @@ const getLowAttendanceStudents = async (req, res) => {
     const students = await Student.find(query);
     
     const lowAttendanceList = [];
-    const totalDays = 20; // Demo ke liye 20 din ka standard
+    const totalDays = 20; 
 
     for (const student of students) {
       const totalPresent = await Attendance.countDocuments({ 
