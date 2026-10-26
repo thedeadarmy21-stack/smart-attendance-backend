@@ -5,15 +5,11 @@ const {
   getTeacherStats, 
   getTeacherAttendanceReport 
 } = require('../controllers/teacherAttendanceController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, adminOnly } = require('../middleware/authMiddleware'); // ✅ adminOnly import
 
-// Teacher ki attendance lagana (scan)
-router.post('/scan', protect, markTeacherAttendance);
-
-// Dashboard ke liye stats
-router.get('/stats', protect, getTeacherStats);
-
-// Attendance report (date ke hisaab se)
-router.get('/report', protect, getTeacherAttendanceReport);
+// Sirf admin hi teacher ki attendance laga sakta hai
+router.post('/scan', protect, adminOnly, markTeacherAttendance);
+router.get('/stats', protect, adminOnly, getTeacherStats);
+router.get('/report', protect, adminOnly, getTeacherAttendanceReport);
 
 module.exports = router;

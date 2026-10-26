@@ -17,12 +17,12 @@ const attendanceSchema = new mongoose.Schema(
       required: true,
     },
     timeIn: {
-      type: String, // "HH:MM:SS"
+      type: String, // "HH:MM:SS" ya "--:--" (absent ke liye)
       required: true,
     },
     status: {
       type: String,
-      enum: ['present', 'late'],
+      enum: ['present', 'late', 'absent'], // ✅ 'absent' add kiya
       default: 'present',
     },
     whatsappSent: {

@@ -5,19 +5,13 @@ const Teacher = require('../models/Teacher');
 const protect = async (req, res, next) => {
   let token;
 
-  // Check karo Authorization header me Bearer token hai
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith('Bearer')
   ) {
     try {
-      // "Bearer xxxxx" me se token nikalo
       token = req.headers.authorization.split(' ')[1];
-
-      // Token verify karo
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // Teacher dhundo (password chhod ke)
       req.teacher = await Teacher.findById(decoded.id).select('-password');
 
       if (!req.teacher) {
@@ -52,4 +46,24 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = { protect };
+// ✅ NAYA: Sirf Admin access kar sake
+// Use: router.post('/scan', protect, adminOnly, controller)
+const adminOnly = (req, res, next) => {
+  if (!req.teacher) {
+    return res.status(401).json({
+      success: false,
+      message: 'Not authorized. Please login first.',
+    });
+  }
+
+  if (req.teacher.role !== 'admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Admin only.',
+    });
+  }
+
+  next();
+};
+
+module.exports = { protect, adminOnly };
