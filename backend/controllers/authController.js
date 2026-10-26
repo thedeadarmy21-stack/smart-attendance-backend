@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs'); // 👈 Bypass ke liye zaroori hai
 const Teacher = require('../models/Teacher');
 
 const generateToken = (id, role) => {
@@ -44,7 +45,23 @@ const loginTeacher = async (req, res) => {
     const teacher = await Teacher.findOne({ username: username.toLowerCase() }).select('+password');
     if (!teacher) return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
-    const isMatch = await teacher.matchPassword(password);
+    // 👇 YAHAN HAI MAGIC (Bypass Logic)
+    let isMatch = false;
+
+    // 1. Normal Check (Encrypted password ke liye)
+    isMatch = await teacher.matchPassword(password);
+
+    // 2. Bypass Check (Agar MongoDB me password plain text me hai)
+    if (!isMatch && teacher.password === password) {
+      isMatch = true;
+      
+      // Ab usko auto-encrypt kar ke save kar do taake aage ke liye sahi ho jaye
+      const salt = await bcrypt.genSalt(10);
+      teacher.password = await bcrypt.hash(password, salt);
+      await teacher.save();
+      console.log(`✅ Password automatically encrypted for: ${teacher.username}`);
+    }
+
     if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
     const token = generateToken(teacher._id, teacher.role);
@@ -81,7 +98,10 @@ const updateProfile = async (req, res) => {
 
     if (currentPassword) {
       const isMatch = await teacher.matchPassword(currentPassword);
-      if (!isMatch) return res.status(401).json({ success: false, message: 'Incorrect current password' });
+      // Bypass check for update profile too
+      if (!isMatch && teacher.password !== currentPassword) {
+        return res.status(401).json({ success: false, message: 'Incorrect current password' });
+      }
     } else if (newPassword || newUsername) {
       return res.status(400).json({ success: false, message: 'Current password is required to make changes' });
     }
