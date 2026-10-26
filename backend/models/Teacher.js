@@ -8,8 +8,13 @@ const teacherSchema = new mongoose.Schema(
     password: { type: String, required: true, minlength: 6, select: false },
     schoolName: { type: String, required: true, trim: true },
     isActive: { type: Boolean, default: true },
-    // 👇 Ye device locking ke liye hai
-    allowedDeviceId: { type: String, default: null }, 
+    
+    // 👇 NAYA FIELD: Role (admin ya teacher)
+    role: {
+      type: String,
+      enum: ['teacher', 'admin'],
+      default: 'teacher',
+    },
   },
   { timestamps: true }
 );

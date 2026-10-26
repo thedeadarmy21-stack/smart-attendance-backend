@@ -1,29 +1,41 @@
 const jwt = require('jsonwebtoken');
 const Teacher = require('../models/Teacher');
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+const generateToken = (id, role) => {
+  return jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
-// Register
+// Register (Naye teacher ya admin ke liye)
 const registerTeacher = async (req, res) => {
   try {
-    const { name, username, password, schoolName } = req.body;
+    const { name, username, password, schoolName, role } = req.body;
     if (!name || !username || !password || !schoolName) {
       return res.status(400).json({ success: false, message: 'Please provide all fields' });
     }
     const existingTeacher = await Teacher.findOne({ username: username.toLowerCase() });
     if (existingTeacher) return res.status(400).json({ success: false, message: 'Username already taken' });
 
-    const teacher = await Teacher.create({ name, username, password, schoolName });
-    const token = generateToken(teacher._id);
-    res.status(201).json({ success: true, message: 'Registered', token, teacher: { id: teacher._id, name, username, schoolName } });
+    const teacher = await Teacher.create({ 
+      name, 
+      username, 
+      password, 
+      schoolName, 
+      role: role || 'teacher'
+    });
+    
+    const token = generateToken(teacher._id, teacher.role);
+    res.status(201).json({ 
+      success: true, 
+      message: 'Registered', 
+      token, 
+      teacher: { id: teacher._id, name, username, schoolName, role: teacher.role } 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// Login (Bina kisi Device Lock ke)
+// Login
 const loginTeacher = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -35,8 +47,20 @@ const loginTeacher = async (req, res) => {
     const isMatch = await teacher.matchPassword(password);
     if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid credentials' });
 
-    const token = generateToken(teacher._id);
-    res.status(200).json({ success: true, message: 'Login successful', token, teacher: { id: teacher._id, name: teacher.name, username: teacher.username, schoolName: teacher.schoolName } });
+    const token = generateToken(teacher._id, teacher.role);
+    
+    res.status(200).json({ 
+      success: true, 
+      message: 'Login successful', 
+      token, 
+      teacher: { 
+        id: teacher._id, 
+        name: teacher.name, 
+        username: teacher.username, 
+        schoolName: teacher.schoolName,
+        role: teacher.role
+      } 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -47,7 +71,7 @@ const getMe = async (req, res) => {
   res.status(200).json({ success: true, teacher: req.teacher });
 };
 
-// Update Profile (Username & Password)
+// Update Profile
 const updateProfile = async (req, res) => {
   try {
     const { newUsername, currentPassword, newPassword } = req.body;
@@ -77,14 +101,34 @@ const updateProfile = async (req, res) => {
     res.status(200).json({ 
       success: true, 
       message: 'Profile updated successfully', 
-      teacher: { id: teacher._id, name: teacher.name, username: teacher.username, schoolName: teacher.schoolName } 
+      teacher: { 
+        id: teacher._id, 
+        name: teacher.name, 
+        username: teacher.username, 
+        schoolName: teacher.schoolName,
+        role: teacher.role
+      } 
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// 🚀 Device Lock hata diya gaya hai, isliye resetDeviceLocks bhi hata diya hai.
-// Ab koi bhi teacher kisi bhi phone se login kar sakta hai.
+// 🚀 NAYA: Saare teachers ki list (Admin Panel ke liye)
+const getAllTeachers = async (req, res) => {
+  try {
+    const teachers = await Teacher.find({ isActive: true })
+      .select('name username role schoolName createdAt')
+      .sort({ createdAt: -1 });
 
-module.exports = { registerTeacher, loginTeacher, getMe, updateProfile };
+    res.status(200).json({ 
+      success: true, 
+      count: teachers.length,
+      teachers 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = { registerTeacher, loginTeacher, getMe, updateProfile, getAllTeachers };
