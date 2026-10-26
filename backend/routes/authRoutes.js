@@ -4,17 +4,22 @@ const {
   registerTeacher, 
   loginTeacher, 
   getMe, 
-  updateProfile,
-  getAllTeachers // 👈 Naya Import
+  updateOwnProfile,      // 👈 Naya function
+  updateTeacherByAdmin,  // 👈 Naya function
+  getAllTeachers
 } = require('../controllers/authController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, adminOnly } = require('../middleware/authMiddleware');
 
+// Public Routes
 router.post('/register', registerTeacher);
 router.post('/login', loginTeacher);
-router.get('/me', protect, getMe);
-router.put('/update-profile', protect, updateProfile); 
 
-// 🚀 NAYA ROUTE: Saare teachers ki list
-router.get('/all-teachers', protect, getAllTeachers);
+// Protected Routes (Login zaroori hai)
+router.get('/me', protect, getMe);
+router.get('/all-teachers', protect, adminOnly, getAllTeachers);
+
+// 🚀 Profile Update Routes
+router.put('/update-profile', protect, updateOwnProfile); // Khud ka profile (Admin/Teacher)
+router.put('/update-teacher/:teacherId', protect, adminOnly, updateTeacherByAdmin); // Kisi teacher ka profile (Sirf Admin)
 
 module.exports = router;
