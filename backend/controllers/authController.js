@@ -5,7 +5,7 @@ const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
-// 🚀 REGISTER (Naya account banane ke liye)
+// 🚀 REGISTER
 const registerTeacher = async (req, res) => {
   try {
     const { name, username, password, schoolName, role } = req.body;
@@ -24,7 +24,7 @@ const registerTeacher = async (req, res) => {
   }
 };
 
-// 🚀 LOGIN (Verify logic)
+// 🚀 LOGIN
 const loginTeacher = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -45,7 +45,12 @@ const loginTeacher = async (req, res) => {
   }
 };
 
-// 🚀 NAYA: APNA PROFILE UPDATE KARNA (Admin khud ke liye use karega)
+// 🚀 GET ME (Ye function miss ho gaya tha, jiski wajah se server crash ho raha tha)
+const getMe = async (req, res) => {
+  res.status(200).json({ success: true, teacher: req.teacher });
+};
+
+// 🚀 APNA PROFILE UPDATE KARNA
 const updateOwnProfile = async (req, res) => {
   try {
     const { newUsername, currentPassword, newPassword } = req.body;
@@ -53,27 +58,25 @@ const updateOwnProfile = async (req, res) => {
 
     if (!teacher) return res.status(404).json({ success: false, message: 'User not found' });
 
-    // 1. Verify current password
     if (!currentPassword) {
       return res.status(400).json({ success: false, message: 'Current password is required to make changes' });
     }
+    
     const isMatch = await teacher.matchPassword(currentPassword);
     if (!isMatch) return res.status(401).json({ success: false, message: 'Incorrect current password' });
 
-    // 2. Update Username (if provided)
     if (newUsername && newUsername !== teacher.username) {
       const existing = await Teacher.findOne({ username: newUsername.toLowerCase() });
       if (existing) return res.status(400).json({ success: false, message: 'Username already taken' });
       teacher.username = newUsername.toLowerCase();
     }
 
-    // 3. Update Password (if provided) - Model khud hash kar dega
     if (newPassword) {
       if (newPassword.length < 6) return res.status(400).json({ success: false, message: 'Password must be 6 characters' });
       teacher.password = newPassword; 
     }
 
-    await teacher.save(); // pre('save') trigger hoga aur password hash hoga
+    await teacher.save();
 
     res.status(200).json({ 
       success: true, 
@@ -85,7 +88,7 @@ const updateOwnProfile = async (req, res) => {
   }
 };
 
-// 🚀 NAYA: KISI TEACHER KA PROFILE UPDATE KARNA (Sirf Admin use karega)
+// 🚀 KISI TEACHER KA PROFILE UPDATE KARNA
 const updateTeacherByAdmin = async (req, res) => {
   try {
     const { teacherId } = req.params;
@@ -121,7 +124,7 @@ const updateTeacherByAdmin = async (req, res) => {
   }
 };
 
-// 🚀 NAYA: Saare teachers ki list
+// 🚀 SAARE TEACHERS KI LIST
 const getAllTeachers = async (req, res) => {
   try {
     const teachers = await Teacher.find({ isActive: true })
@@ -137,6 +140,7 @@ const getAllTeachers = async (req, res) => {
 module.exports = { 
   registerTeacher, 
   loginTeacher, 
+  getMe, 
   updateOwnProfile, 
   updateTeacherByAdmin, 
   getAllTeachers 
