@@ -41,6 +41,15 @@ const markTeacherAttendance = async (req, res) => {
       minute: '2-digit',
     });
 
+    // 🚀 NAYA: Late Logic (8:15 AM ke baad late)
+    const localTime24 = today.toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: false });
+    const [localHour, localMinute] = localTime24.split(':').map(Number);
+
+    let status = 'present';
+    if (localHour > 8 || (localHour === 8 && localMinute > 15)) {
+      status = 'late';
+    }
+
     // Check karo ke aaj pehle se attendance lagi hai ya nahi
     const existing = await TeacherAttendance.findOne({ 
       teacherId: teacher._id, 
@@ -54,18 +63,20 @@ const markTeacherAttendance = async (req, res) => {
       });
     }
 
+    // Attendance save karein (status ke saath)
     await TeacherAttendance.create({
       teacherId: teacher._id,
       adminId,
       date: dateStr,
       timeIn: timeStr,
-      status: 'present',
+      status: status, // 👈 Ab 'present' ya 'late' save hoga
     });
 
     res.status(200).json({ 
       success: true, 
       teacherName: teacher.name, 
-      timeIn: timeStr 
+      timeIn: timeStr,
+      status: status // 👈 Response mein bhi status bhejein
     });
   } catch (error) {
     console.error('Mark Teacher Attendance Error:', error);
@@ -87,7 +98,7 @@ const getTeacherStats = async (req, res) => {
       isActive: true 
     });
 
-    // Aaj kitne teachers present hain
+    // Aaj kitne teachers present/late hain
     const presentTeachers = await TeacherAttendance.countDocuments({ 
       date: dateStr 
     });
