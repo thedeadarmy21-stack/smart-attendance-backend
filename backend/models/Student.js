@@ -27,17 +27,20 @@ const studentSchema = new mongoose.Schema(
       required: [true, 'Father name is required'],
       trim: true,
     },
-    // 👇 WhatsApp Number future ke liye rakha hai (abhi optional hai)
     fatherWhatsApp: {
       type: String,
       trim: true,
     },
-    // 👇 Gmail wala system chalane ke liye Email field add ki hai
     fatherEmail: {
       type: String,
       required: [true, 'Father email is required'],
       trim: true,
       lowercase: true,
+    },
+    // 🚀 NAYA: Student ki Picture (Base64 form mein)
+    profilePicture: {
+      type: String,
+      default: '',
     },
     qrCode: {
       type: String,

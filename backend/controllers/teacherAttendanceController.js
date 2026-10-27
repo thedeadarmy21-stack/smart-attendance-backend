@@ -9,25 +9,19 @@ const markTeacherAttendance = async (req, res) => {
     const { qrCode } = req.body;
     const adminId = req.teacher._id;
 
-    // Check karo ke logged-in user admin hai ya nahi
     if (req.teacher.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Only Admin can mark teacher attendance' 
-      });
+      return res.status(403).json({ success: false, message: 'Only Admin can mark teacher attendance' });
     }
 
     if (!qrCode) {
       return res.status(400).json({ success: false, message: 'QR Code is required' });
     }
 
-    // QR Code me teacher ka username hoga
     const teacher = await Teacher.findOne({ username: qrCode });
     if (!teacher) {
       return res.status(404).json({ success: false, message: 'Invalid Teacher QR Code' });
     }
 
-    // Agar khud admin ka QR scan ho jaye to rok do
     if (teacher._id.toString() === adminId.toString()) {
       return res.status(400).json({ success: false, message: 'You cannot mark your own attendance' });
     }
@@ -41,7 +35,7 @@ const markTeacherAttendance = async (req, res) => {
       minute: '2-digit',
     });
 
-    // 🚀 NAYA: Late Logic (8:15 AM ke baad late)
+    // 🚀 Late Logic (8:15 AM ke baad late)
     const localTime24 = today.toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: false });
     const [localHour, localMinute] = localTime24.split(':').map(Number);
 
@@ -50,58 +44,34 @@ const markTeacherAttendance = async (req, res) => {
       status = 'late';
     }
 
-    // Check karo ke aaj pehle se attendance lagi hai ya nahi
-    const existing = await TeacherAttendance.findOne({ 
-      teacherId: teacher._id, 
-      date: dateStr 
-    });
-    
+    const existing = await TeacherAttendance.findOne({ teacherId: teacher._id, date: dateStr });
     if (existing) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `${teacher.name} already marked today at ${existing.timeIn}` 
-      });
+      return res.status(400).json({ success: false, message: `${teacher.name} already marked today at ${existing.timeIn}` });
     }
 
-    // Attendance save karein (status ke saath)
     await TeacherAttendance.create({
       teacherId: teacher._id,
       adminId,
       date: dateStr,
       timeIn: timeStr,
-      status: status, // 👈 Ab 'present' ya 'late' save hoga
+      status: status,
     });
 
-    res.status(200).json({ 
-      success: true, 
-      teacherName: teacher.name, 
-      timeIn: timeStr,
-      status: status // 👈 Response mein bhi status bhejein
-    });
+    res.status(200).json({ success: true, teacherName: teacher.name, timeIn: timeStr, status: status });
   } catch (error) {
     console.error('Mark Teacher Attendance Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Aaj ki total teachers ki attendance count (Dashboard ke liye)
-// @route   GET /api/teacher-attendance/stats
-// @access  Private (Admin only)
+// @desc    Teacher Stats for Dashboard
 const getTeacherStats = async (req, res) => {
   try {
     const today = new Date();
     const dateStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
 
-    // Total teachers count (sirf teacher role wale, admin nahi)
-    const totalTeachers = await Teacher.countDocuments({ 
-      role: 'teacher', 
-      isActive: true 
-    });
-
-    // Aaj kitne teachers present/late hain
-    const presentTeachers = await TeacherAttendance.countDocuments({ 
-      date: dateStr 
-    });
+    const totalTeachers = await Teacher.countDocuments({ role: 'teacher', isActive: true });
+    const presentTeachers = await TeacherAttendance.countDocuments({ date: dateStr });
 
     res.status(200).json({ 
       success: true, 
@@ -110,21 +80,15 @@ const getTeacherStats = async (req, res) => {
       absentTeachers: totalTeachers - presentTeachers < 0 ? 0 : totalTeachers - presentTeachers
     });
   } catch (error) {
-    console.error('Teacher Stats Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Saari teachers ki attendance report (date ke hisaab se)
-// @route   GET /api/teacher-attendance/report?date=YYYY-MM-DD
-// @access  Private (Admin only)
+// @desc    Teacher Attendance Report (Date-wise)
 const getTeacherAttendanceReport = async (req, res) => {
   try {
     const { date } = req.query;
-    
-    if (!date) {
-      return res.status(400).json({ success: false, message: 'Date is required' });
-    }
+    if (!date) return res.status(400).json({ success: false, message: 'Date is required' });
 
     const attendance = await TeacherAttendance.find({ date })
       .populate('teacherId', 'name username role')
@@ -132,7 +96,52 @@ const getTeacherAttendanceReport = async (req, res) => {
 
     res.status(200).json({ success: true, attendance });
   } catch (error) {
-    console.error('Teacher Report Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 🚀 NAYA: Delete Teacher (Sirf Admin)
+const deleteTeacher = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const teacher = await Teacher.findById(id);
+    
+    if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
+    if (teacher.role === 'admin') return res.status(403).json({ success: false, message: 'Cannot delete admin' });
+
+    // Teacher ki saari attendance delete karein
+    await TeacherAttendance.deleteMany({ teacherId: id });
+    // Teacher ko delete karein
+    await Teacher.findByIdAndDelete(id);
+
+    res.status(200).json({ success: true, message: 'Teacher and records deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 🚀 NAYA: Teacher ki puri history (Profile page ke liye)
+const getTeacherHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const teacher = await Teacher.findById(id);
+    if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
+
+    const attendance = await TeacherAttendance.find({ teacherId: id }).sort({ date: -1 });
+
+    const totalPresent = attendance.filter(a => a.status === 'present').length;
+    const totalLate = attendance.filter(a => a.status === 'late').length;
+    const totalAbsent = attendance.filter(a => a.status === 'absent').length;
+    const totalDays = totalPresent + totalLate + totalAbsent;
+    const attendancePercentage = totalDays === 0 ? 0 : Math.round(((totalPresent + totalLate) / totalDays) * 100);
+
+    res.status(200).json({ 
+      success: true, 
+      teacher: { name: teacher.name, username: teacher.username, role: teacher.role, schoolName: teacher.schoolName },
+      stats: { totalPresent, totalLate, totalAbsent, attendancePercentage },
+      attendance 
+    });
+  } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -140,5 +149,7 @@ const getTeacherAttendanceReport = async (req, res) => {
 module.exports = { 
   markTeacherAttendance, 
   getTeacherStats, 
-  getTeacherAttendanceReport 
+  getTeacherAttendanceReport,
+  deleteTeacher,
+  getTeacherHistory
 };

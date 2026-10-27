@@ -5,7 +5,7 @@ const { generateQRId, generateQRImage } = require('../utils/qrGenerator');
 // @desc    Naya student add karo
 const addStudent = async (req, res) => {
   try {
-    const { name, rollNumber, className, section, fatherName, fatherWhatsApp, fatherEmail } = req.body;
+    const { name, rollNumber, className, section, fatherName, fatherWhatsApp, fatherEmail, profilePicture } = req.body;
 
     if (!name || !rollNumber || !className || !fatherName || !fatherEmail) {
       return res.status(400).json({ success: false, message: 'Please provide all required fields' });
@@ -19,13 +19,14 @@ const addStudent = async (req, res) => {
     const student = await Student.create({
       name, rollNumber, className, section: section || 'A', fatherName,
       fatherWhatsApp: fatherWhatsApp || '', fatherEmail, qrCode: qrId, schoolName: req.teacher.schoolName,
+      profilePicture: profilePicture || '', // 🚀 Picture save
     });
 
     const qrImageDataUrl = await generateQRImage(qrId);
 
     res.status(201).json({
       success: true, message: 'Student added successfully',
-      student: { id: student._id, name: student.name, rollNumber: student.rollNumber, className: student.className, section: student.section, fatherName: student.fatherName, fatherEmail: student.fatherEmail, qrCode: student.qrCode, qrImage: qrImageDataUrl },
+      student: { id: student._id, name: student.name, rollNumber: student.rollNumber, className: student.className, section: student.section, fatherName: student.fatherName, fatherEmail: student.fatherEmail, qrCode: student.qrCode, qrImage: qrImageDataUrl, profilePicture: student.profilePicture },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error while adding student', error: error.message });
@@ -64,14 +65,10 @@ const deleteStudent = async (req, res) => {
   try {
     const studentId = req.params.id;
     
-    // Pehle student dhundo
     const student = await Student.findOne({ _id: studentId, schoolName: req.teacher.schoolName });
     if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
-    // Student ki saari attendance delete karo
     await Attendance.deleteMany({ studentId: studentId });
-    
-    // Phir student delete karo
     await Student.findByIdAndDelete(studentId);
 
     res.status(200).json({ success: true, message: 'Student and their records deleted successfully' });

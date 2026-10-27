@@ -22,7 +22,7 @@ const teacherAttendanceSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['present', 'late', 'absent'],
+      enum: ['present', 'late', 'absent'], // ✅ Pehle se sahi hai
       default: 'present',
     },
   },

@@ -2,7 +2,7 @@ const Student = require('../models/Student');
 const Attendance = require('../models/Attendance');
 const { sendWhatsAppMessage } = require('../utils/whatsappSender');
 
-// @desc    Student ka QR scan karke attendance lagao (Class-wise logic ke saath)
+// @desc    Student ka QR scan karke attendance lagao
 const markAttendance = async (req, res) => {
   try {
     const { qrCode, targetClass } = req.body; 
@@ -14,7 +14,6 @@ const markAttendance = async (req, res) => {
     const student = await Student.findOne({ qrCode, schoolName });
     if (!student) return res.status(404).json({ success: false, message: 'Invalid QR Code' });
 
-    // Class-wise Check
     if (targetClass && student.className !== targetClass) {
       return res.status(400).json({ 
         success: false, 
@@ -23,17 +22,9 @@ const markAttendance = async (req, res) => {
     }
 
     const today = new Date();
-    // Date (YYYY-MM-DD)
     const dateStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
-    
-    const timeStr = today.toLocaleTimeString('en-US', { 
-  timeZone: 'Asia/Karachi', 
-  hour12: true, 
-  hour: '2-digit', 
-  minute: '2-digit' 
-});
+    const timeStr = today.toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: true, hour: '2-digit', minute: '2-digit' });
 
-    // Late Logic (24-hour format me check karenge taaki AM/PM ka confusion na ho)
     const localTime24 = today.toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: false });
     const [localHour, localMinute] = localTime24.split(':').map(Number);
 
@@ -50,7 +41,6 @@ const markAttendance = async (req, res) => {
     await Attendance.create({ studentId: student._id, teacherId, date: dateStr, timeIn: timeStr, status: status });
 
     const message = `Assalam-o-Alaikum. Aapka beta ${student.name} (Roll No: ${student.rollNumber}) aaj Smart School ${status === 'late' ? 'der se ' : ''}aa gaya hai. Time: ${timeStr} hai.`;
-    
     await sendWhatsAppMessage(student.fatherEmail, student.fatherWhatsApp, message);
 
     res.status(200).json({ success: true, studentName: student.name, rollNumber: student.rollNumber, timeIn: timeStr, status: status });
@@ -59,7 +49,7 @@ const markAttendance = async (req, res) => {
   }
 };
 
-// @desc    Aaj ki total attendance count
+// @desc    Aaj ki total attendance count (Teacher Dashboard ke liye)
 const getTodayAttendanceCount = async (req, res) => {
   try {
     const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' }); 
@@ -70,15 +60,39 @@ const getTodayAttendanceCount = async (req, res) => {
   }
 };
 
-// @desc    Dashboard ke liye aaj ka data
+// @desc    Dashboard ke liye aaj ka data (FIXED)
 const getDashboardStats = async (req, res) => {
   try {
     const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' }); 
-    const totalStudents = await Student.countDocuments({ schoolName: req.teacher.schoolName, isActive: true });
-    const presentToday = await Attendance.countDocuments({ teacherId: req.teacher._id, date: dateStr });
-    const absentToday = totalStudents - presentToday;
+    const schoolName = req.teacher.schoolName;
 
-    res.status(200).json({ success: true, totalStudents, presentToday, absentToday: absentToday < 0 ? 0 : absentToday });
+    // Total Students (pure school ke)
+    const totalStudents = await Student.countDocuments({ schoolName, isActive: true });
+
+    // 🚀 FIX: Ab present count pure school ka aayega (teacherId filter hataya)
+    const presentToday = await Attendance.countDocuments({ 
+      date: dateStr,
+      // School ka filter lagayein taake sirf is school ka data aaye
+      // Student ka schoolName check karne ke liye pipeline use karna padega, 
+      // lekin filhal aasan tareeqa hai ke saare present count karein
+    });
+
+    // Agar aap chahte hain ke sirf is school ke students ka count aaye:
+    const studentsOfSchool = await Student.find({ schoolName, isActive: true }).select('_id');
+    const studentIds = studentsOfSchool.map(s => s._id);
+    const presentTodayOfSchool = await Attendance.countDocuments({ 
+      date: dateStr,
+      studentId: { $in: studentIds }
+    });
+
+    const absentToday = totalStudents - presentTodayOfSchool;
+
+    res.status(200).json({ 
+      success: true, 
+      totalStudents, 
+      presentToday: presentTodayOfSchool, 
+      absentToday: absentToday < 0 ? 0 : absentToday 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
   }
@@ -91,7 +105,8 @@ const getClassWiseStats = async (req, res) => {
     const schoolName = req.teacher.schoolName;
 
     const students = await Student.find({ schoolName, isActive: true });
-    const todayAttendance = await Attendance.find({ date: dateStr, teacherId: req.teacher._id });
+    // 🚀 FIX: Ab saare school ki attendance aayegi, sirf ek teacher ki nahi
+    const todayAttendance = await Attendance.find({ date: dateStr });
 
     const classData = {};
 
@@ -118,7 +133,8 @@ const getClassWiseStats = async (req, res) => {
 const markAbsentees = async (req, res) => {
   try {
     const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
-    const presentRecords = await Attendance.find({ date: dateStr, teacherId: req.teacher._id }).select('studentId');
+    // 🚀 FIX: Ab pure school ki present list aayegi
+    const presentRecords = await Attendance.find({ date: dateStr }).select('studentId');
     const presentStudentIds = presentRecords.map(r => r.studentId.toString());
 
     const absentStudents = await Student.find({ schoolName: req.teacher.schoolName, isActive: true, _id: { $nin: presentStudentIds } });
