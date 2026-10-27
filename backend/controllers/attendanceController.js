@@ -7,6 +7,7 @@ const markAttendance = async (req, res) => {
   try {
     const { qrCode, targetClass } = req.body; 
     const teacherId = req.teacher._id;
+    const teacherName = req.teacher.name; // 🚀 Teacher ka naam save karenge
     const schoolName = req.teacher.schoolName;
 
     if (!qrCode) return res.status(400).json({ success: false, message: 'QR Code is required' });
@@ -38,7 +39,15 @@ const markAttendance = async (req, res) => {
       return res.status(400).json({ success: false, message: `Already marked for ${student.name} at ${existingAttendance.timeIn}` });
     }
 
-    await Attendance.create({ studentId: student._id, teacherId, date: dateStr, timeIn: timeStr, status: status });
+    // 🚀 Teacher Name bhi save hoga
+    await Attendance.create({ 
+      studentId: student._id, 
+      teacherId, 
+      teacherName, 
+      date: dateStr, 
+      timeIn: timeStr, 
+      status: status 
+    });
 
     const message = `Assalam-o-Alaikum. Aapka beta ${student.name} (Roll No: ${student.rollNumber}) aaj Smart School ${status === 'late' ? 'der se ' : ''}aa gaya hai. Time: ${timeStr} hai.`;
     await sendWhatsAppMessage(student.fatherEmail, student.fatherWhatsApp, message);
@@ -60,24 +69,14 @@ const getTodayAttendanceCount = async (req, res) => {
   }
 };
 
-// @desc    Dashboard ke liye aaj ka data (FIXED)
+// @desc    Dashboard ke liye aaj ka data
 const getDashboardStats = async (req, res) => {
   try {
     const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' }); 
     const schoolName = req.teacher.schoolName;
 
-    // Total Students (pure school ke)
     const totalStudents = await Student.countDocuments({ schoolName, isActive: true });
 
-    // 🚀 FIX: Ab present count pure school ka aayega (teacherId filter hataya)
-    const presentToday = await Attendance.countDocuments({ 
-      date: dateStr,
-      // School ka filter lagayein taake sirf is school ka data aaye
-      // Student ka schoolName check karne ke liye pipeline use karna padega, 
-      // lekin filhal aasan tareeqa hai ke saare present count karein
-    });
-
-    // Agar aap chahte hain ke sirf is school ke students ka count aaye:
     const studentsOfSchool = await Student.find({ schoolName, isActive: true }).select('_id');
     const studentIds = studentsOfSchool.map(s => s._id);
     const presentTodayOfSchool = await Attendance.countDocuments({ 
@@ -105,7 +104,6 @@ const getClassWiseStats = async (req, res) => {
     const schoolName = req.teacher.schoolName;
 
     const students = await Student.find({ schoolName, isActive: true });
-    // 🚀 FIX: Ab saare school ki attendance aayegi, sirf ek teacher ki nahi
     const todayAttendance = await Attendance.find({ date: dateStr });
 
     const classData = {};
@@ -133,14 +131,13 @@ const getClassWiseStats = async (req, res) => {
 const markAbsentees = async (req, res) => {
   try {
     const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
-    // 🚀 FIX: Ab pure school ki present list aayegi
     const presentRecords = await Attendance.find({ date: dateStr }).select('studentId');
     const presentStudentIds = presentRecords.map(r => r.studentId.toString());
 
     const absentStudents = await Student.find({ schoolName: req.teacher.schoolName, isActive: true, _id: { $nin: presentStudentIds } });
 
     const absentRecords = absentStudents.map(student => ({
-      studentId: student._id, teacherId: req.teacher._id, date: dateStr, timeIn: '--:--', status: 'absent'
+      studentId: student._id, teacherId: req.teacher._id, teacherName: req.teacher.name, date: dateStr, timeIn: '--:--', status: 'absent'
     }));
 
     if (absentRecords.length > 0) await Attendance.insertMany(absentRecords);

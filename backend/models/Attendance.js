@@ -12,17 +12,22 @@ const attendanceSchema = new mongoose.Schema(
       ref: 'Teacher',
       required: true,
     },
+    // 🚀 NAYA: Teacher ka naam bhi save karenge (history mein dikhane ke liye)
+    teacherName: {
+      type: String,
+      default: 'Unknown',
+    },
     date: {
-      type: String, // "YYYY-MM-DD" format me store karenge
+      type: String,
       required: true,
     },
     timeIn: {
-      type: String, // "HH:MM:SS" ya "--:--" (absent ke liye)
+      type: String,
       required: true,
     },
     status: {
       type: String,
-      enum: ['present', 'late', 'absent'], // ✅ 'absent' add kiya
+      enum: ['present', 'late', 'absent'],
       default: 'present',
     },
     whatsappSent: {
@@ -33,7 +38,6 @@ const attendanceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Ek din me ek student ka sirf ek attendance record
 attendanceSchema.index({ studentId: 1, date: 1 }, { unique: true });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);

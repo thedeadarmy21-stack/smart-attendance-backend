@@ -5,19 +5,26 @@ const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
-// 🚀 REGISTER
+// 🚀 REGISTER (Phone aur Class ke saath)
 const registerTeacher = async (req, res) => {
   try {
-    const { name, username, password, schoolName, role } = req.body;
+    const { name, username, password, schoolName, role, phone, assignedClass } = req.body;
     
     const existingTeacher = await Teacher.findOne({ username: username.toLowerCase() });
     if (existingTeacher) return res.status(400).json({ success: false, message: 'Username already taken' });
 
-    const teacher = await Teacher.create({ name, username, password, schoolName, role });
+    const teacher = await Teacher.create({ 
+      name, username, password, schoolName, role, 
+      phone: phone || '', 
+      assignedClass: assignedClass || '' 
+    });
+    
     const token = generateToken(teacher._id, teacher.role);
     
     res.status(201).json({ success: true, token, teacher: {
-      id: teacher._id, name: teacher.name, username: teacher.username, schoolName: teacher.schoolName, role: teacher.role
+      id: teacher._id, name: teacher.name, username: teacher.username, 
+      schoolName: teacher.schoolName, role: teacher.role,
+      phone: teacher.phone, assignedClass: teacher.assignedClass
     }});
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -38,19 +45,21 @@ const loginTeacher = async (req, res) => {
     const token = generateToken(teacher._id, teacher.role);
     
     res.status(200).json({ success: true, token, teacher: {
-      id: teacher._id, name: teacher.name, username: teacher.username, schoolName: teacher.schoolName, role: teacher.role
+      id: teacher._id, name: teacher.name, username: teacher.username, 
+      schoolName: teacher.schoolName, role: teacher.role,
+      phone: teacher.phone, assignedClass: teacher.assignedClass
     }});
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// 🚀 GET ME (Ye function miss ho gaya tha, jiski wajah se server crash ho raha tha)
+// 🚀 GET ME
 const getMe = async (req, res) => {
   res.status(200).json({ success: true, teacher: req.teacher });
 };
 
-// 🚀 APNA PROFILE UPDATE KARNA
+// 🚀 APNA PROFILE UPDATE
 const updateOwnProfile = async (req, res) => {
   try {
     const { newUsername, currentPassword, newPassword } = req.body;
@@ -81,14 +90,14 @@ const updateOwnProfile = async (req, res) => {
     res.status(200).json({ 
       success: true, 
       message: 'Profile updated successfully', 
-      teacher: { id: teacher._id, name: teacher.name, username: teacher.username, schoolName: teacher.schoolName, role: teacher.role } 
+      teacher: { id: teacher._id, name: teacher.name, username: teacher.username, schoolName: teacher.schoolName, role: teacher.role, phone: teacher.phone, assignedClass: teacher.assignedClass } 
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// 🚀 KISI TEACHER KA PROFILE UPDATE KARNA
+// 🚀 KISI TEACHER KA PROFILE UPDATE
 const updateTeacherByAdmin = async (req, res) => {
   try {
     const { teacherId } = req.params;
@@ -117,7 +126,7 @@ const updateTeacherByAdmin = async (req, res) => {
     res.status(200).json({ 
       success: true, 
       message: 'Teacher profile updated successfully', 
-      teacher: { id: teacher._id, name: teacher.name, username: teacher.username, role: teacher.role } 
+      teacher: { id: teacher._id, name: teacher.name, username: teacher.username, role: teacher.role, phone: teacher.phone, assignedClass: teacher.assignedClass } 
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -128,7 +137,7 @@ const updateTeacherByAdmin = async (req, res) => {
 const getAllTeachers = async (req, res) => {
   try {
     const teachers = await Teacher.find({ isActive: true })
-      .select('name username role schoolName createdAt')
+      .select('name username role schoolName phone assignedClass createdAt')
       .sort({ createdAt: -1 });
 
     res.status(200).json({ success: true, count: teachers.length, teachers });

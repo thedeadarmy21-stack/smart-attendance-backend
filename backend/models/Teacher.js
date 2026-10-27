@@ -8,6 +8,10 @@ const teacherSchema = new mongoose.Schema({
   schoolName: { type: String, required: true },
   role: { type: String, enum: ['teacher', 'admin'], default: 'teacher' },
   isActive: { type: Boolean, default: true },
+  
+  // 🚀 NAYA: Teacher ke extra details
+  phone: { type: String, default: '' },
+  assignedClass: { type: String, default: '' }, // Jaise "5", "10" etc.
 }, { timestamps: true });
 
 // 🔐 ENCRYPTION LOGIC
@@ -17,7 +21,7 @@ teacherSchema.pre('save', async function () {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-// 🔐 VERIFY LOGIC (Login ke waqt use hoga)
+// 🔐 VERIFY LOGIC
 teacherSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
