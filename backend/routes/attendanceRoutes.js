@@ -6,7 +6,8 @@ const {
   getDashboardStats,
   getClassWiseStats,
   markAbsentees,
-  getLowAttendanceStudents // 👈 Naya import
+  getLowAttendanceStudents,
+  getTodayAbsentStudents // 🚀 Naya import
 } = require('../controllers/attendanceController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -15,8 +16,7 @@ router.get('/today', protect, getTodayAttendanceCount);
 router.get('/dashboard-stats', protect, getDashboardStats);
 router.get('/class-stats', protect, getClassWiseStats);
 router.post('/mark-absent', protect, markAbsentees);
-
-// 🚀 NAYA ROUTE: Low Attendance Alert
 router.get('/low-attendance', protect, getLowAttendanceStudents);
+router.get('/today-absent', protect, getTodayAbsentStudents); // 🚀 Naya route
 
 module.exports = router;

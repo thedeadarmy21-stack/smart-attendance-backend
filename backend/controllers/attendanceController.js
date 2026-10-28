@@ -7,7 +7,7 @@ const markAttendance = async (req, res) => {
   try {
     const { qrCode, targetClass } = req.body; 
     const teacherId = req.teacher._id;
-    const teacherName = req.teacher.name; // 🚀 Teacher ka naam save karenge
+    const teacherName = req.teacher.name;
     const schoolName = req.teacher.schoolName;
 
     if (!qrCode) return res.status(400).json({ success: false, message: 'QR Code is required' });
@@ -39,7 +39,6 @@ const markAttendance = async (req, res) => {
       return res.status(400).json({ success: false, message: `Already marked for ${student.name} at ${existingAttendance.timeIn}` });
     }
 
-    // 🚀 Teacher Name bhi save hoga
     await Attendance.create({ 
       studentId: student._id, 
       teacherId, 
@@ -58,7 +57,7 @@ const markAttendance = async (req, res) => {
   }
 };
 
-// @desc    Aaj ki total attendance count (Teacher Dashboard ke liye)
+// @desc    Aaj ki total attendance count
 const getTodayAttendanceCount = async (req, res) => {
   try {
     const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' }); 
@@ -69,7 +68,7 @@ const getTodayAttendanceCount = async (req, res) => {
   }
 };
 
-// @desc    Dashboard ke liye aaj ka data
+// 🚀 FIXED: Dashboard Stats (Sirf present aur late count honge)
 const getDashboardStats = async (req, res) => {
   try {
     const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' }); 
@@ -79,9 +78,12 @@ const getDashboardStats = async (req, res) => {
 
     const studentsOfSchool = await Student.find({ schoolName, isActive: true }).select('_id');
     const studentIds = studentsOfSchool.map(s => s._id);
+    
+    // 🚀 FIX: Sirf present aur late count karein (absent nahi)
     const presentTodayOfSchool = await Attendance.countDocuments({ 
       date: dateStr,
-      studentId: { $in: studentIds }
+      studentId: { $in: studentIds },
+      status: { $in: ['present', 'late'] } 
     });
 
     const absentToday = totalStudents - presentTodayOfSchool;
@@ -104,7 +106,11 @@ const getClassWiseStats = async (req, res) => {
     const schoolName = req.teacher.schoolName;
 
     const students = await Student.find({ schoolName, isActive: true });
-    const todayAttendance = await Attendance.find({ date: dateStr });
+    // 🚀 FIX: Sirf present aur late wali attendance fetch karein
+    const todayAttendance = await Attendance.find({ 
+      date: dateStr,
+      status: { $in: ['present', 'late'] }
+    });
 
     const classData = {};
 
@@ -127,7 +133,7 @@ const getClassWiseStats = async (req, res) => {
   }
 };
 
-// @desc    Mark all unscanned students as absent
+// @desc    Manually mark all unscanned students as absent
 const markAbsentees = async (req, res) => {
   try {
     const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
@@ -143,6 +149,36 @@ const markAbsentees = async (req, res) => {
     if (absentRecords.length > 0) await Attendance.insertMany(absentRecords);
     res.status(200).json({ success: true, message: `${absentStudents.length} students marked as absent.` });
   } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// 🚀 NAYA: Aaj ke Absent Students ki list
+const getTodayAbsentStudents = async (req, res) => {
+  try {
+    const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+    const schoolName = req.teacher.schoolName;
+
+    // Aaj ke saare absent students (jo scan nahi hue ya absent mark hue)
+    const absentRecords = await Attendance.find({ 
+      date: dateStr, 
+      status: 'absent' 
+    }).populate('studentId', 'name rollNumber className section schoolName');
+
+    // Filter karein sirf is school ke
+    const filtered = absentRecords.filter(record => 
+      record.studentId && record.studentId.schoolName === schoolName
+    ).map(record => ({
+      _id: record.studentId._id,
+      name: record.studentId.name,
+      rollNumber: record.studentId.rollNumber,
+      className: record.studentId.className,
+      section: record.studentId.section,
+    }));
+
+    res.status(200).json({ success: true, data: filtered });
+  } catch (error) {
+    console.error('Absent Students Error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -190,4 +226,12 @@ const getLowAttendanceStudents = async (req, res) => {
   }
 };
 
-module.exports = { markAttendance, getTodayAttendanceCount, getDashboardStats, getClassWiseStats, markAbsentees, getLowAttendanceStudents };
+module.exports = { 
+  markAttendance, 
+  getTodayAttendanceCount, 
+  getDashboardStats, 
+  getClassWiseStats, 
+  markAbsentees, 
+  getLowAttendanceStudents,
+  getTodayAbsentStudents // 🚀 Naya export
+};
