@@ -68,7 +68,7 @@ const getTodayAttendanceCount = async (req, res) => {
   }
 };
 
-// 🚀 FIXED: Dashboard Stats (Sirf present aur late count honge)
+// 🚀 Dashboard Stats (Sirf present aur late count honge)
 const getDashboardStats = async (req, res) => {
   try {
     const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' }); 
@@ -79,7 +79,6 @@ const getDashboardStats = async (req, res) => {
     const studentsOfSchool = await Student.find({ schoolName, isActive: true }).select('_id');
     const studentIds = studentsOfSchool.map(s => s._id);
     
-    // 🚀 FIX: Sirf present aur late count karein (absent nahi)
     const presentTodayOfSchool = await Attendance.countDocuments({ 
       date: dateStr,
       studentId: { $in: studentIds },
@@ -106,7 +105,6 @@ const getClassWiseStats = async (req, res) => {
     const schoolName = req.teacher.schoolName;
 
     const students = await Student.find({ schoolName, isActive: true });
-    // 🚀 FIX: Sirf present aur late wali attendance fetch karein
     const todayAttendance = await Attendance.find({ 
       date: dateStr,
       status: { $in: ['present', 'late'] }
@@ -153,19 +151,17 @@ const markAbsentees = async (req, res) => {
   }
 };
 
-// 🚀 NAYA: Aaj ke Absent Students ki list
+// 🚀 Aaj ke Absent Students ki list
 const getTodayAbsentStudents = async (req, res) => {
   try {
     const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
     const schoolName = req.teacher.schoolName;
 
-    // Aaj ke saare absent students (jo scan nahi hue ya absent mark hue)
     const absentRecords = await Attendance.find({ 
       date: dateStr, 
       status: 'absent' 
     }).populate('studentId', 'name rollNumber className section schoolName');
 
-    // Filter karein sirf is school ke
     const filtered = absentRecords.filter(record => 
       record.studentId && record.studentId.schoolName === schoolName
     ).map(record => ({
@@ -226,6 +222,44 @@ const getLowAttendanceStudents = async (req, res) => {
   }
 };
 
+// 🚀 NAYA: Weekly Stats for Graph (Pichle 7 din ka data)
+const getWeeklyStats = async (req, res) => {
+  try {
+    const schoolName = req.teacher.schoolName;
+    const today = new Date();
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const weeklyData = [];
+
+    // School ke saare students ki IDs
+    const studentsOfSchool = await Student.find({ schoolName, isActive: true }).select('_id');
+    const studentIds = studentsOfSchool.map(s => s._id);
+
+    // Pichle 7 din ka data nikaalein
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      const dateStr = date.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+
+      const count = await Attendance.countDocuments({
+        date: dateStr,
+        studentId: { $in: studentIds },
+        status: { $in: ['present', 'late'] }
+      });
+
+      weeklyData.push({
+        dayName: days[date.getDay()],
+        date: dateStr,
+        count: count
+      });
+    }
+
+    res.status(200).json({ success: true, data: weeklyData });
+  } catch (error) {
+    console.error('Weekly Stats Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 module.exports = { 
   markAttendance, 
   getTodayAttendanceCount, 
@@ -233,5 +267,6 @@ module.exports = {
   getClassWiseStats, 
   markAbsentees, 
   getLowAttendanceStudents,
-  getTodayAbsentStudents // 🚀 Naya export
+  getTodayAbsentStudents,
+  getWeeklyStats // 🚀 Naya export
 };
