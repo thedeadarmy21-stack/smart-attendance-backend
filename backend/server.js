@@ -3,7 +3,6 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 
-// 👇 Vercel ko force karo ke Node.js runtime use kare
 process.env.VERCEL = '1';
 
 dotenv.config();
@@ -33,8 +32,9 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/students', require('./routes/studentRoutes'));
 app.use('/api/attendance', require('./routes/attendanceRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
-// 🚀 NAYA: Teachers ki attendance ke routes
 app.use('/api/teacher-attendance', require('./routes/teacherAttendanceRoutes'));
+// 🚀 NAYA: Broadcast Routes
+app.use('/api/broadcast', require('./routes/broadcastRoutes'));
 
 // 404 handler
 app.use((req, res) => {
@@ -53,7 +53,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Vercel par ye block skip ho jayega, local par chalega
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
