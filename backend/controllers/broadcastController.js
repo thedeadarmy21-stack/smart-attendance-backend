@@ -2,12 +2,12 @@ const Student = require('../models/Student');
 const BroadcastMessage = require('../models/BroadcastMessage');
 const { sendWhatsAppMessage } = require('../utils/whatsappSender');
 
-// @desc    Bulk Message bhejein (All ya Specific Class)
+// @desc    Bulk Message bhejein (All, Specific Class, ya Specific Student)
 // @route   POST /api/broadcast/send
 // @access  Private (Admin only)
 const sendBroadcast = async (req, res) => {
   try {
-    const { message, targetType, targetClass } = req.body;
+    const { message, targetType, targetClass, targetStudentId } = req.body;
     const adminId = req.teacher._id;
     const adminName = req.teacher.name;
     const schoolName = req.teacher.schoolName;
@@ -17,12 +17,18 @@ const sendBroadcast = async (req, res) => {
     }
 
     // 🚀 Target Students fetch karein
-    let query = { schoolName, isActive: true };
-    if (targetType === 'class' && targetClass) {
-      query.className = targetClass;
-    }
+    let students = [];
 
-    const students = await Student.find(query);
+    if (targetType === 'student' && targetStudentId) {
+      const student = await Student.findOne({ _id: targetStudentId, schoolName });
+      if (student) students = [student];
+    } else {
+      let query = { schoolName, isActive: true };
+      if (targetType === 'class' && targetClass) {
+        query.className = targetClass;
+      }
+      students = await Student.find(query);
+    }
 
     if (students.length === 0) {
       return res.status(404).json({ success: false, message: 'No students found for this target' });
@@ -34,7 +40,6 @@ const sendBroadcast = async (req, res) => {
 
     for (const student of students) {
       try {
-        // Agar parent ka email ya WhatsApp number mojood hai
         if (student.fatherEmail || student.fatherWhatsApp) {
           await sendWhatsAppMessage(student.fatherEmail, student.fatherWhatsApp, message);
           successCount++;
@@ -52,6 +57,7 @@ const sendBroadcast = async (req, res) => {
       message,
       targetType,
       targetClass: targetType === 'class' ? targetClass : '',
+      targetStudentName: targetType === 'student' ? students[0].name : '',
       sentBy: adminId,
       sentByName: adminName,
       totalRecipients: students.length,
@@ -78,7 +84,7 @@ const getBroadcastHistory = async (req, res) => {
   try {
     const history = await BroadcastMessage.find({ schoolName: req.teacher.schoolName })
       .sort({ createdAt: -1 })
-      .limit(50); // Sirf last 50 messages
+      .limit(50);
 
     res.status(200).json({ success: true, count: history.length, history });
   } catch (error) {
