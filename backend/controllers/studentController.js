@@ -19,7 +19,7 @@ const addStudent = async (req, res) => {
     const student = await Student.create({
       name, rollNumber, className, section: section || 'A', fatherName,
       fatherWhatsApp: fatherWhatsApp || '', fatherEmail, qrCode: qrId, schoolName: req.teacher.schoolName,
-      profilePicture: profilePicture || '', // 🚀 Picture save
+      profilePicture: profilePicture || '',
     });
 
     const qrImageDataUrl = await generateQRImage(qrId);
@@ -60,7 +60,56 @@ const getStudentProfile = async (req, res) => {
   }
 };
 
-// 🚀 NAYA FEATURE: Student Delete karo
+// 🚀 NAYA: Student ka data update karo
+const updateStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, rollNumber, className, section, fatherName, fatherWhatsApp, fatherEmail, profilePicture } = req.body;
+
+    // Pehle student dhundo
+    const student = await Student.findOne({ _id: id, schoolName: req.teacher.schoolName });
+    if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+    // Agar roll number ya class change ho rahi hai, toh check karein ke koi aur student us roll number par toh nahi hai
+    if (rollNumber && rollNumber !== student.rollNumber) {
+      const existing = await Student.findOne({ 
+        rollNumber, 
+        className: className || student.className, 
+        section: section || student.section, 
+        schoolName: req.teacher.schoolName,
+        _id: { $ne: id } // Khud ko chhod kar
+      });
+      if (existing) return res.status(400).json({ success: false, message: 'This roll number already exists in this class' });
+    }
+
+    // Data update karein
+    if (name) student.name = name;
+    if (rollNumber) student.rollNumber = rollNumber;
+    if (className) student.className = className;
+    if (section) student.section = section;
+    if (fatherName) student.fatherName = fatherName;
+    if (fatherWhatsApp !== undefined) student.fatherWhatsApp = fatherWhatsApp;
+    if (fatherEmail) student.fatherEmail = fatherEmail;
+    if (profilePicture !== undefined) student.profilePicture = profilePicture;
+
+    await student.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Student updated successfully',
+      student: { 
+        id: student._id, name: student.name, rollNumber: student.rollNumber, 
+        className: student.className, section: student.section, fatherName: student.fatherName, 
+        fatherWhatsApp: student.fatherWhatsApp, fatherEmail: student.fatherEmail, profilePicture: student.profilePicture 
+      },
+    });
+  } catch (error) {
+    console.error('Update Error:', error);
+    res.status(500).json({ success: false, message: 'Server error while updating student' });
+  }
+};
+
+// 🚀 Student Delete karo
 const deleteStudent = async (req, res) => {
   try {
     const studentId = req.params.id;
@@ -78,4 +127,4 @@ const deleteStudent = async (req, res) => {
   }
 };
 
-module.exports = { addStudent, getStudents, getStudentProfile, deleteStudent };
+module.exports = { addStudent, getStudents, getStudentProfile, updateStudent, deleteStudent };
