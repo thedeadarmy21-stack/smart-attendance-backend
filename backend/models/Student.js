@@ -31,13 +31,12 @@ const studentSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // 🚀 FIX: Email ab zaroori nahi hai
     fatherEmail: {
       type: String,
-      required: [true, 'Father email is required'],
       trim: true,
       lowercase: true,
     },
-    // 🚀 NAYA: Student ki Picture (Base64 form mein)
     profilePicture: {
       type: String,
       default: '',
