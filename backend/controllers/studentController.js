@@ -7,7 +7,8 @@ const addStudent = async (req, res) => {
   try {
     const { name, rollNumber, className, section, fatherName, fatherWhatsApp, fatherEmail, profilePicture } = req.body;
 
-    if (!name || !rollNumber || !className || !fatherName || !fatherEmail) {
+    // 🚀 FIX: fatherEmail ab zaroori nahi hai
+    if (!name || !rollNumber || !className || !fatherName) {
       return res.status(400).json({ success: false, message: 'Please provide all required fields' });
     }
 
@@ -18,7 +19,9 @@ const addStudent = async (req, res) => {
 
     const student = await Student.create({
       name, rollNumber, className, section: section || 'A', fatherName,
-      fatherWhatsApp: fatherWhatsApp || '', fatherEmail, qrCode: qrId, schoolName: req.teacher.schoolName,
+      fatherWhatsApp: fatherWhatsApp || '', 
+      fatherEmail: fatherEmail || '', // 🚀 Empty string agar nahi hai
+      qrCode: qrId, schoolName: req.teacher.schoolName,
       profilePicture: profilePicture || '',
     });
 
@@ -66,30 +69,27 @@ const updateStudent = async (req, res) => {
     const { id } = req.params;
     const { name, rollNumber, className, section, fatherName, fatherWhatsApp, fatherEmail, profilePicture } = req.body;
 
-    // Pehle student dhundo
     const student = await Student.findOne({ _id: id, schoolName: req.teacher.schoolName });
     if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
-    // Agar roll number ya class change ho rahi hai, toh check karein ke koi aur student us roll number par toh nahi hai
     if (rollNumber && rollNumber !== student.rollNumber) {
       const existing = await Student.findOne({ 
         rollNumber, 
         className: className || student.className, 
         section: section || student.section, 
         schoolName: req.teacher.schoolName,
-        _id: { $ne: id } // Khud ko chhod kar
+        _id: { $ne: id }
       });
       if (existing) return res.status(400).json({ success: false, message: 'This roll number already exists in this class' });
     }
 
-    // Data update karein
     if (name) student.name = name;
     if (rollNumber) student.rollNumber = rollNumber;
     if (className) student.className = className;
     if (section) student.section = section;
     if (fatherName) student.fatherName = fatherName;
     if (fatherWhatsApp !== undefined) student.fatherWhatsApp = fatherWhatsApp;
-    if (fatherEmail) student.fatherEmail = fatherEmail;
+    if (fatherEmail !== undefined) student.fatherEmail = fatherEmail; // 🚀 Undefined check
     if (profilePicture !== undefined) student.profilePicture = profilePicture;
 
     await student.save();
