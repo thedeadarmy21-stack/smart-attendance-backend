@@ -6,7 +6,8 @@ const {
   getMe, 
   updateOwnProfile,
   updateTeacherByAdmin,
-  getAllTeachers
+  getAllTeachers,
+  getUniqueClasses // 🚀 Naya Import yahan add kiya
 } = require('../controllers/authController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
@@ -17,11 +18,10 @@ router.post('/login', loginTeacher);
 // Protected Routes
 router.get('/me', protect, getMe);
 router.get('/all-teachers', protect, adminOnly, getAllTeachers);
-router.get('/classes', protect, getUniqueClasses);
+router.get('/classes', protect, getUniqueClasses); // 🚀 Route ab kaam karega
 
 // Profile Update Routes
 router.put('/update-profile', protect, updateOwnProfile);
 router.put('/update-teacher/:teacherId', protect, adminOnly, updateTeacherByAdmin);
-
 
 module.exports = router;
