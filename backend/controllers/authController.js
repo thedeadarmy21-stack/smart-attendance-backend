@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const Teacher = require('../models/Teacher');
+const Student = require('../models/Student'); // 🚀 Naya import
 
 const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: '30d' });
@@ -146,11 +147,27 @@ const getAllTeachers = async (req, res) => {
   }
 };
 
+// 🚀 NAYA: Saari Unique Classes nikaalein
+const getUniqueClasses = async (req, res) => {
+  try {
+    const schoolName = req.teacher.schoolName;
+    const classes = await Student.distinct('className', { schoolName, isActive: true });
+    
+    // Sorting (optional)
+    const sortedClasses = classes.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    
+    res.status(200).json({ success: true, classes: sortedClasses });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = { 
   registerTeacher, 
   loginTeacher, 
   getMe, 
   updateOwnProfile, 
   updateTeacherByAdmin, 
-  getAllTeachers 
+  getAllTeachers,
+  getUniqueClasses // 🚀 Naya export
 };

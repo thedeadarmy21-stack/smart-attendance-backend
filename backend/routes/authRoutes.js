@@ -17,9 +17,11 @@ router.post('/login', loginTeacher);
 // Protected Routes
 router.get('/me', protect, getMe);
 router.get('/all-teachers', protect, adminOnly, getAllTeachers);
+router.get('/classes', protect, getUniqueClasses);
 
 // Profile Update Routes
 router.put('/update-profile', protect, updateOwnProfile);
 router.put('/update-teacher/:teacherId', protect, adminOnly, updateTeacherByAdmin);
+
 
 module.exports = router;
