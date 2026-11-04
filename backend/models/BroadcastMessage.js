@@ -9,10 +9,15 @@ const broadcastMessageSchema = new mongoose.Schema(
     },
     targetType: {
       type: String,
-      enum: ['all', 'class'],
+      enum: ['all', 'class', 'student'], // 🚀 'student' add kiya
       default: 'all',
     },
     targetClass: {
+      type: String,
+      default: '',
+    },
+    // 🚀 NAYA: Kis student ko message gaya (History ke liye)
+    targetStudentName: {
       type: String,
       default: '',
     },
