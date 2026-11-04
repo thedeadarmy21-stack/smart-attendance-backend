@@ -2,8 +2,6 @@ const Teacher = require('../models/Teacher');
 const TeacherAttendance = require('../models/TeacherAttendance');
 
 // @desc    Teacher ki attendance lagao (Sirf Admin)
-// @route   POST /api/teacher-attendance/scan
-// @access  Private (Admin only)
 const markTeacherAttendance = async (req, res) => {
   try {
     const { qrCode } = req.body;
@@ -35,7 +33,6 @@ const markTeacherAttendance = async (req, res) => {
       minute: '2-digit',
     });
 
-    // 🚀 Late Logic (8:15 AM ke baad late)
     const localTime24 = today.toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: false });
     const [localHour, localMinute] = localTime24.split(':').map(Number);
 
@@ -100,7 +97,7 @@ const getTeacherAttendanceReport = async (req, res) => {
   }
 };
 
-// 🚀 NAYA: Delete Teacher (Sirf Admin)
+// 🚀 Delete Teacher (Sirf Admin)
 const deleteTeacher = async (req, res) => {
   try {
     const { id } = req.params;
@@ -109,9 +106,7 @@ const deleteTeacher = async (req, res) => {
     if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
     if (teacher.role === 'admin') return res.status(403).json({ success: false, message: 'Cannot delete admin' });
 
-    // Teacher ki saari attendance delete karein
     await TeacherAttendance.deleteMany({ teacherId: id });
-    // Teacher ko delete karein
     await Teacher.findByIdAndDelete(id);
 
     res.status(200).json({ success: true, message: 'Teacher and records deleted successfully' });
@@ -120,7 +115,7 @@ const deleteTeacher = async (req, res) => {
   }
 };
 
-// 🚀 NAYA: Teacher ki puri history (Profile page ke liye)
+// 🚀 Teacher ki puri history (Profile page ke liye)
 const getTeacherHistory = async (req, res) => {
   try {
     const { id } = req.params;
@@ -137,7 +132,15 @@ const getTeacherHistory = async (req, res) => {
 
     res.status(200).json({ 
       success: true, 
-      teacher: { name: teacher.name, username: teacher.username, role: teacher.role, schoolName: teacher.schoolName },
+      // 🚀 FIX: assignedClass aur phone add kiya
+      teacher: { 
+        name: teacher.name, 
+        username: teacher.username, 
+        role: teacher.role, 
+        schoolName: teacher.schoolName,
+        assignedClass: teacher.assignedClass, 
+        phone: teacher.phone 
+      },
       stats: { totalPresent, totalLate, totalAbsent, attendancePercentage },
       attendance 
     });

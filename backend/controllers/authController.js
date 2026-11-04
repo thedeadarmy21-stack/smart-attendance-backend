@@ -1,12 +1,12 @@
 const jwt = require('jsonwebtoken');
 const Teacher = require('../models/Teacher');
-const Student = require('../models/Student'); // 🚀 Naya import
+const Student = require('../models/Student');
 
 const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
-// 🚀 REGISTER (Phone aur Class ke saath)
+// 🚀 REGISTER
 const registerTeacher = async (req, res) => {
   try {
     const { name, username, password, schoolName, role, phone, assignedClass } = req.body;
@@ -138,7 +138,7 @@ const updateTeacherByAdmin = async (req, res) => {
 const getAllTeachers = async (req, res) => {
   try {
     const teachers = await Teacher.find({ isActive: true })
-      .select('name username role schoolName phone assignedClass createdAt')
+      .select('name username role schoolName phone assignedClass createdAt') // 🚀 assignedClass select kiya
       .sort({ createdAt: -1 });
 
     res.status(200).json({ success: true, count: teachers.length, teachers });
@@ -153,7 +153,6 @@ const getUniqueClasses = async (req, res) => {
     const schoolName = req.teacher.schoolName;
     const classes = await Student.distinct('className', { schoolName, isActive: true });
     
-    // Sorting (optional)
     const sortedClasses = classes.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     
     res.status(200).json({ success: true, classes: sortedClasses });
@@ -169,5 +168,5 @@ module.exports = {
   updateOwnProfile, 
   updateTeacherByAdmin, 
   getAllTeachers,
-  getUniqueClasses // 🚀 Naya export
+  getUniqueClasses
 };
