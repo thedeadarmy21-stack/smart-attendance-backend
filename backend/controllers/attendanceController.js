@@ -57,6 +57,135 @@ const markAttendance = async (req, res) => {
   }
 };
 
+// 🚀 MANUAL ATTENDANCE (2 Options: List Se ya Search Se)
+const markManualAttendance = async (req, res) => {
+  try {
+    const { studentId } = req.body; 
+    const teacherId = req.teacher._id;
+    const teacherName = req.teacher.name;
+    const schoolName = req.teacher.schoolName;
+
+    if (!studentId) return res.status(400).json({ success: false, message: 'Student ID is required' });
+
+    const student = await Student.findOne({ _id: studentId, schoolName });
+    if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+    const timeStr = today.toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: true, hour: '2-digit', minute: '2-digit' });
+
+    const localTime24 = today.toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: false });
+    const [localHour, localMinute] = localTime24.split(':').map(Number);
+
+    let status = 'present';
+    if (localHour > 8 || (localHour === 8 && localMinute > 15)) {
+      status = 'late';
+    }
+
+    const existingAttendance = await Attendance.findOne({ studentId: student._id, date: dateStr });
+    if (existingAttendance) {
+      return res.status(400).json({ success: false, message: `Already marked for ${student.name} at ${existingAttendance.timeIn}` });
+    }
+
+    await Attendance.create({ 
+      studentId: student._id, 
+      teacherId, 
+      teacherName, 
+      date: dateStr, 
+      timeIn: timeStr, 
+      status: status 
+    });
+
+    const message = `Assalam-o-Alaikum. Aapka beta ${student.name} (Roll No: ${student.rollNumber}) aaj Smart School ${status === 'late' ? 'der se ' : ''}aa gaya hai. Time: ${timeStr} hai.`;
+    await sendWhatsAppMessage(student.fatherEmail, student.fatherWhatsApp, message);
+
+    res.status(200).json({ success: true, studentName: student.name, rollNumber: student.rollNumber, timeIn: timeStr, status: status });
+  } catch (error) {
+    console.error('Manual Attendance Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// 🚀 NAYA: Ek Class Ke Students Ki List (Manual Attendance ke liye)
+const getStudentsByClass = async (req, res) => {
+  try {
+    const { className } = req.query;
+    const schoolName = req.teacher.schoolName;
+
+    if (!className) return res.status(400).json({ success: false, message: 'Class name is required' });
+
+    const students = await Student.find({ 
+      className, 
+      schoolName, 
+      isActive: true 
+    }).sort({ rollNumber: 1 }).select('name rollNumber className section profilePicture');
+
+    // Aaj ki attendance bhi check karein
+    const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+    const todayAttendance = await Attendance.find({ 
+      date: dateStr,
+      studentId: { $in: students.map(s => s._id) }
+    }).select('studentId status timeIn');
+
+    const studentsWithAttendance = students.map(student => {
+      const att = todayAttendance.find(a => a.studentId.toString() === student._id.toString());
+      return {
+        ...student.toObject(),
+        attendanceStatus: att ? att.status : null,
+        attendanceTime: att ? att.timeIn : null
+      };
+    });
+
+    res.status(200).json({ success: true, students: studentsWithAttendance });
+  } catch (error) {
+    console.error('Students By Class Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// 🚀 NAYA: Search Student by Roll Number or Name (Manual Attendance ke liye)
+const searchStudent = async (req, res) => {
+  try {
+    const { query } = req.query;
+    const schoolName = req.teacher.schoolName;
+
+    if (!query || query.trim() === '') {
+      return res.status(400).json({ success: false, message: 'Search query is required' });
+    }
+
+    // Roll number ya naam se search karein
+    const students = await Student.find({
+      schoolName,
+      isActive: true,
+      $or: [
+        { rollNumber: { $regex: query, $options: 'i' } },
+        { name: { $regex: query, $options: 'i' } }
+      ]
+    }).limit(10).select('name rollNumber className section profilePicture');
+
+    // Aaj ki attendance bhi check karein
+    const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+    const todayAttendance = await Attendance.find({ 
+      date: dateStr,
+      studentId: { $in: students.map(s => s._id) }
+    }).select('studentId status timeIn');
+
+    const studentsWithAttendance = students.map(student => {
+      const att = todayAttendance.find(a => a.studentId.toString() === student._id.toString());
+      return {
+        ...student.toObject(),
+        attendanceStatus: att ? att.status : null,
+        attendanceTime: att ? att.timeIn : null
+      };
+    });
+
+    res.status(200).json({ success: true, students: studentsWithAttendance });
+  } catch (error) {
+    console.error('Search Student Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // @desc    Aaj ki total attendance count
 const getTodayAttendanceCount = async (req, res) => {
   try {
@@ -68,7 +197,7 @@ const getTodayAttendanceCount = async (req, res) => {
   }
 };
 
-// 🚀 Dashboard Stats (Sirf present aur late count honge)
+// 🚀 Dashboard Stats
 const getDashboardStats = async (req, res) => {
   try {
     const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' }); 
@@ -222,7 +351,7 @@ const getLowAttendanceStudents = async (req, res) => {
   }
 };
 
-// 🚀 NAYA: Weekly Stats for Graph (Pichle 7 din ka data)
+// 🚀 NAYA: Weekly Stats for Graph
 const getWeeklyStats = async (req, res) => {
   try {
     const schoolName = req.teacher.schoolName;
@@ -230,11 +359,9 @@ const getWeeklyStats = async (req, res) => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const weeklyData = [];
 
-    // School ke saare students ki IDs
     const studentsOfSchool = await Student.find({ schoolName, isActive: true }).select('_id');
     const studentIds = studentsOfSchool.map(s => s._id);
 
-    // Pichle 7 din ka data nikaalein
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(today.getDate() - i);
@@ -262,11 +389,14 @@ const getWeeklyStats = async (req, res) => {
 
 module.exports = { 
   markAttendance, 
+  markManualAttendance, 
+  getStudentsByClass,
+  searchStudent,
   getTodayAttendanceCount, 
   getDashboardStats, 
   getClassWiseStats, 
   markAbsentees, 
   getLowAttendanceStudents,
   getTodayAbsentStudents,
-  getWeeklyStats // 🚀 Naya export
+  getWeeklyStats,
 };
