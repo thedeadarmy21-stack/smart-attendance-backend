@@ -10,9 +10,11 @@ const attendanceSchema = new mongoose.Schema(
     teacherId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Teacher',
-      required: true,
+      // 🚀 FIX: 'absent' ke liye teacherId optional hai (System Auto), baaki ke liye required
+      required: function() {
+        return this.status !== 'absent';
+      },
     },
-    // 🚀 NAYA: Teacher ka naam bhi save karenge (history mein dikhane ke liye)
     teacherName: {
       type: String,
       default: 'Unknown',
