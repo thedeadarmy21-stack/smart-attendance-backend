@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@zxing/browser": "^0.2.1",
     "axios": "^1.7.0",
     "html5-qrcode": "^2.3.8",
     "react": "^18.3.1",
