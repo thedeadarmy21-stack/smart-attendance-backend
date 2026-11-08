@@ -36,4 +36,5 @@ router.get('/weekly-stats', protect, getWeeklyStats);
 // 🚀 NAYA: Auto Absent Route (Bina login ke, secret key ke saath)
 router.post('/auto-absent', autoMarkAbsentees);
 
+// Force update for GitHub Actions
 module.exports = router;
