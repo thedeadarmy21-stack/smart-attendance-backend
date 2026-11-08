@@ -1,0 +1,16 @@
+name: Auto Mark Absentees
+
+on:
+  schedule:
+    # Rozana 06:00 UTC = 11:00 AM Pakistan Time
+    - cron: '0 6 * * *'
+  workflow_dispatch: # Manually test karne ke liye
+
+jobs:
+  mark-absent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Auto Absent API
+        run: |
+          curl -X POST "https://smart-attendance-backend-one.vercel.app/api/attendance/auto-absent?secret=${{ secrets.CRON_SECRET }}" \
+          -H "Content-Type: application/json"
