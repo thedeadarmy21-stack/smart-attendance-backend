@@ -11,17 +11,18 @@ const {
   markAbsentees,
   getLowAttendanceStudents,
   getTodayAbsentStudents,
-  getWeeklyStats
+  getWeeklyStats,
+  autoMarkAbsentees // 🚀 Naya import
 } = require('../controllers/attendanceController');
 const { protect } = require('../middleware/authMiddleware');
 
 // QR Scan
 router.post('/scan', protect, markAttendance);
 
-// 🚀 Manual Attendance (2 Options)
-router.post('/manual-mark', protect, markManualAttendance); // Mark attendance manually
-router.get('/students-by-class', protect, getStudentsByClass); // Option 1: Class se list dekho
-router.get('/search-student', protect, searchStudent); // Option 2: Roll No/Name se search karo
+// Manual Attendance (2 Options)
+router.post('/manual-mark', protect, markManualAttendance);
+router.get('/students-by-class', protect, getStudentsByClass);
+router.get('/search-student', protect, searchStudent);
 
 // Other Routes
 router.get('/today', protect, getTodayAttendanceCount);
@@ -31,5 +32,8 @@ router.post('/mark-absent', protect, markAbsentees);
 router.get('/low-attendance', protect, getLowAttendanceStudents);
 router.get('/today-absent', protect, getTodayAbsentStudents);
 router.get('/weekly-stats', protect, getWeeklyStats);
+
+// 🚀 NAYA: Auto Absent Route (Bina login ke, secret key ke saath)
+router.post('/auto-absent', autoMarkAbsentees);
 
 module.exports = router;

@@ -120,7 +120,6 @@ const getStudentsByClass = async (req, res) => {
       isActive: true 
     }).sort({ rollNumber: 1 }).select('name rollNumber className section profilePicture');
 
-    // Aaj ki attendance bhi check karein
     const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
     const todayAttendance = await Attendance.find({ 
       date: dateStr,
@@ -143,7 +142,7 @@ const getStudentsByClass = async (req, res) => {
   }
 };
 
-// 🚀 NAYA: Search Student by Roll Number or Name (Manual Attendance ke liye)
+// 🚀 NAYA: Search Student by Roll Number or Name
 const searchStudent = async (req, res) => {
   try {
     const { query } = req.query;
@@ -153,7 +152,6 @@ const searchStudent = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Search query is required' });
     }
 
-    // Roll number ya naam se search karein
     const students = await Student.find({
       schoolName,
       isActive: true,
@@ -163,7 +161,6 @@ const searchStudent = async (req, res) => {
       ]
     }).limit(10).select('name rollNumber className section profilePicture');
 
-    // Aaj ki attendance bhi check karein
     const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
     const todayAttendance = await Attendance.find({ 
       date: dateStr,
@@ -387,6 +384,53 @@ const getWeeklyStats = async (req, res) => {
   }
 };
 
+// 🚀 NAYA: Auto Absent (GitHub Actions ke liye)
+const autoMarkAbsentees = async (req, res) => {
+  try {
+    // Security Check: Secret Key verify karein
+    const { secret } = req.query;
+    if (secret !== process.env.CRON_SECRET) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+    
+    // Aaj ke saare present students ki list
+    const presentRecords = await Attendance.find({ date: dateStr }).select('studentId');
+    const presentStudentIds = presentRecords.map(r => r.studentId.toString());
+
+    // Saare active students nikalein jinki attendance nahi lagi
+    const allStudents = await Student.find({ isActive: true });
+    const absentStudents = allStudents.filter(s => !presentStudentIds.includes(s._id.toString()));
+
+    if (absentStudents.length === 0) {
+      return res.status(200).json({ success: true, message: 'All students already marked.' });
+    }
+
+    // Absent records banayein (System ne mark kiya)
+    const absentRecords = absentStudents.map(student => ({
+      studentId: student._id,
+      teacherId: null,
+      teacherName: 'System (Auto)',
+      date: dateStr,
+      timeIn: '--:--',
+      status: 'absent'
+    }));
+
+    await Attendance.insertMany(absentRecords);
+
+    console.log(`✅ Auto Absent: ${absentStudents.length} students marked absent on ${dateStr}`);
+    
+    res.status(200).json({ 
+      success: true, 
+      message: `${absentStudents.length} students marked as absent automatically.` 
+    });
+  } catch (error) {
+    console.error('Auto Absent Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = { 
   markAttendance, 
   markManualAttendance, 
@@ -399,4 +443,5 @@ module.exports = {
   getLowAttendanceStudents,
   getTodayAbsentStudents,
   getWeeklyStats,
+  autoMarkAbsentees // 🚀 Naya export
 };
