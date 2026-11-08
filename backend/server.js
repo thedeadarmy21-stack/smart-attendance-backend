@@ -4,9 +4,7 @@ const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 
 process.env.VERCEL = '1';
-
 dotenv.config();
-connectDB();
 
 const app = express();
 
@@ -17,6 +15,17 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// 🚀 NAYA: Har request se pehle database connect karo (Serverless ke liye zaroori)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    console.error('DB Connection Middleware Error:', error);
+    res.status(500).json({ success: false, message: 'Database connection failed' });
+  }
+});
 
 app.get('/', (req, res) => {
   res.json({
@@ -33,7 +42,6 @@ app.use('/api/students', require('./routes/studentRoutes'));
 app.use('/api/attendance', require('./routes/attendanceRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/teacher-attendance', require('./routes/teacherAttendanceRoutes'));
-// 🚀 NAYA: Broadcast Routes
 app.use('/api/broadcast', require('./routes/broadcastRoutes'));
 
 // 404 handler
