@@ -3,8 +3,6 @@ const BroadcastMessage = require('../models/BroadcastMessage');
 const { sendWhatsAppMessage } = require('../utils/whatsappSender');
 
 // @desc    Bulk Message bhejein (All, Specific Class, ya Specific Student)
-// @route   POST /api/broadcast/send
-// @access  Private (Admin only)
 const sendBroadcast = async (req, res) => {
   try {
     const { message, targetType, targetClass, targetStudentId } = req.body;
@@ -16,7 +14,6 @@ const sendBroadcast = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Message is required' });
     }
 
-    // 🚀 Target Students fetch karein
     let students = [];
 
     if (targetType === 'student' && targetStudentId) {
@@ -34,7 +31,6 @@ const sendBroadcast = async (req, res) => {
       return res.status(404).json({ success: false, message: 'No students found for this target' });
     }
 
-    // 🚀 Har student ke parent ko message bhejein
     let successCount = 0;
     let failedCount = 0;
 
@@ -52,7 +48,7 @@ const sendBroadcast = async (req, res) => {
       }
     }
 
-    // 🚀 History save karein
+    // 🚀 NAYA: status: 'sent' save karna shuru kiya
     const broadcast = await BroadcastMessage.create({
       message,
       targetType,
@@ -64,6 +60,7 @@ const sendBroadcast = async (req, res) => {
       successCount,
       failedCount,
       schoolName,
+      status: 'sent' 
     });
 
     res.status(200).json({
@@ -78,8 +75,6 @@ const sendBroadcast = async (req, res) => {
 };
 
 // @desc    Purane Broadcast Messages ki history
-// @route   GET /api/broadcast/history
-// @access  Private (Admin only)
 const getBroadcastHistory = async (req, res) => {
   try {
     const history = await BroadcastMessage.find({ schoolName: req.teacher.schoolName })

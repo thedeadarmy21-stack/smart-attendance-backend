@@ -9,14 +9,13 @@ const broadcastMessageSchema = new mongoose.Schema(
     },
     targetType: {
       type: String,
-      enum: ['all', 'class', 'student'], // 🚀 'student' add kiya
+      enum: ['all', 'class', 'student'],
       default: 'all',
     },
     targetClass: {
       type: String,
       default: '',
     },
-    // 🚀 NAYA: Kis student ko message gaya (History ke liye)
     targetStudentName: {
       type: String,
       default: '',
@@ -46,6 +45,19 @@ const broadcastMessageSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // 🚀 NAYA FEATURE: Future Baileys Integration ke liye (Reply System)
+    status: {
+      type: String,
+      enum: ['sent', 'delivered', 'replied'],
+      default: 'sent',
+    },
+    replies: [
+      {
+        senderPhone: { type: String, required: true },
+        replyMessage: { type: String, required: true },
+        receivedAt: { type: Date, default: Date.now },
+      }
+    ]
   },
   { timestamps: true }
 );
