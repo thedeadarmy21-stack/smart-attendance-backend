@@ -11,8 +11,7 @@ const {
   markAbsentees,
   getLowAttendanceStudents,
   getTodayAbsentStudents,
-  getWeeklyStats,
-  autoMarkAbsentees // 🚀 Naya import
+  getWeeklyStats
 } = require('../controllers/attendanceController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -33,8 +32,4 @@ router.get('/low-attendance', protect, getLowAttendanceStudents);
 router.get('/today-absent', protect, getTodayAbsentStudents);
 router.get('/weekly-stats', protect, getWeeklyStats);
 
-// 🚀 NAYA: Auto Absent Route (Bina login ke, secret key ke saath)
-router.post('/auto-absent', autoMarkAbsentees);
-
-// Force update for GitHub Actions
 module.exports = router;
