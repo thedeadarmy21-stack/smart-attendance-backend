@@ -372,32 +372,41 @@ const getLowAttendanceStudents = async (req, res) => {
   }
 };
 
-// 🚀 NAYA: Weekly Stats for Graph
+// 🚀 NAYA: Weekly Stats for Graph (Sirf Working Days Mon-Fri)
 const getWeeklyStats = async (req, res) => {
   try {
     const schoolName = req.teacher.schoolName;
-    const today = new Date();
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const weeklyData = [];
 
-    const studentsOfSchool = await Student.find({ schoolName, isActive: true }).select('_id');
-    const studentIds = studentsOfSchool.map(s => s._id);
-
+    // Total students count for percentage calculation
+    const totalStudents = await Student.countDocuments({ schoolName, isActive: true });
+    
+    // Last 7 days loop (we will filter out weekends)
     for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-      const dateStr = date.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
 
-      const count = await Attendance.countDocuments({
+      // Agar Saturday (6) ya Sunday (0) hai, to skip karo
+      if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+
+      const dateStr = date.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+      const daysName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+      const presentCount = await Attendance.countDocuments({
         date: dateStr,
-        studentId: { $in: studentIds },
+        studentId: { $in: await Student.find({ schoolName, isActive: true }).distinct('_id') },
         status: { $in: ['present', 'late'] }
       });
 
+      // Calculate Percentage
+      const percentage = totalStudents === 0 ? 0 : Math.round((presentCount / totalStudents) * 100);
+
       weeklyData.push({
-        dayName: days[date.getDay()],
+        dayName: daysName[dayOfWeek],
         date: dateStr,
-        count: count
+        count: presentCount,
+        percentage: percentage // Add percentage for UI
       });
     }
 
