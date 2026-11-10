@@ -305,7 +305,7 @@ const getTodayAbsentStudents = async (req, res) => {
   }
 };
 
-// @desc    Low Attendance Alert
+// @desc    Low Attendance Alert (Smart Warning + First Scan Logic)
 const getLowAttendanceStudents = async (req, res) => {
   try {
     const { className } = req.query;
@@ -317,29 +317,53 @@ const getLowAttendanceStudents = async (req, res) => {
     }
 
     const students = await Student.find(query);
-    
     const lowAttendanceList = [];
-    const totalDays = 20; 
 
     for (const student of students) {
+      // 1. Student ka pehla attendance record dhoondo
+      const firstAttendance = await Attendance.findOne({ studentId: student._id }).sort({ date: 1 });
+
+      // Agar student ne abhi tak scan nahi kiya, to skip karo
+      if (!firstAttendance) continue; 
+
+      // 2. Pehli date se aaj tak ke total records (Present + Late + Absent)
+      const totalRecords = await Attendance.countDocuments({ 
+        studentId: student._id,
+        date: { $gte: firstAttendance.date } 
+      });
+
+      // 3. Naye students ko ignore karo (kam az kam 3 din ka data hona chahiye)
+      if (totalRecords < 3) continue;
+
+      // 4. Kitne din Present ya Late aaya
       const totalPresent = await Attendance.countDocuments({ 
         studentId: student._id, 
-        status: { $in: ['present', 'late'] } 
+        status: { $in: ['present', 'late'] },
+        date: { $gte: firstAttendance.date }
       });
       
-      const percentage = Math.round((totalPresent / totalDays) * 100);
+      // 5. Percentage aur Status Calculate karo
+      const percentage = Math.round((totalPresent / totalRecords) * 100);
       
+      let status = 'Good';
+      if (percentage < 65) status = 'Critical';
+      else if (percentage < 75) status = 'Warning';
+
+      // 6. Sirf 75% se kam walon ko list mein daalo
       if (percentage < 75) {
         lowAttendanceList.push({
           _id: student._id,
           name: student.name,
           rollNumber: student.rollNumber,
           className: student.className,
-          percentage: percentage > 100 ? 100 : percentage
+          percentage: percentage,
+          status: status,
+          firstScanDate: firstAttendance.date 
         });
       }
     }
 
+    // Sab se kam percentage wale ko sab se upar dikhao
     lowAttendanceList.sort((a, b) => a.percentage - b.percentage);
     res.status(200).json({ success: true, data: lowAttendanceList });
   } catch (error) {
